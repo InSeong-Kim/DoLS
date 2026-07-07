@@ -1,16 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { api, ApiError, getAccessToken } from "@/lib/api";
 import PaperCard from "@/components/PaperCard";
 import SummaryPanel from "@/components/SummaryPanel";
-import type {
-  KeywordSubscription,
-  PubmedArticle,
-  SubscriptionCheckResult,
-  SummaryResult,
-} from "@/types";
+import { useSearchState } from "@/lib/searchState";
+import type { KeywordSubscription, PubmedArticle, SubscriptionCheckResult } from "@/types";
 
 function SkeletonCard() {
   return (
@@ -36,19 +32,30 @@ function SearchPageInner() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const [keyword, setKeyword] = useState("");
-  const [author, setAuthor] = useState("");
-  const [year, setYear] = useState("");
-  const [journal, setJournal] = useState("");
-  const [sort, setSort] = useState<"relevance" | "date">("relevance");
-  const [retmax, setRetmax] = useState(10);
+  const {
+    keyword,
+    setKeyword,
+    author,
+    setAuthor,
+    year,
+    setYear,
+    journal,
+    setJournal,
+    sort,
+    setSort,
+    retmax,
+    setRetmax,
+    searched,
+    setSearched,
+    articles,
+    setArticles,
+    summary,
+    setSummary,
+  } = useSearchState();
 
-  const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [articles, setArticles] = useState<PubmedArticle[]>([]);
 
-  const [summary, setSummary] = useState<SummaryResult | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
@@ -201,6 +208,17 @@ function SearchPageInner() {
   const alreadySubscribed = subscriptions.some(
     (s) => s.keyword.toLowerCase() === keyword.trim().toLowerCase()
   );
+
+  // 정렬 드롭다운을 바꾸면 재검색 없이 즉시 화면에 반영합니다.
+  // "최신순"은 이미 가진 결과를 pubYear 기준으로 바로 재정렬하고,
+  // "관련도순"은 마지막으로 받아온 원래 순서를 그대로 보여줍니다
+  // (PubMed는 관련도 점수 자체를 내려주지 않아 그 순서를 그대로 신뢰합니다).
+  const displayedArticles = useMemo(() => {
+    if (sort === "date") {
+      return [...articles].sort((a, b) => (b.pubYear ?? -Infinity) - (a.pubYear ?? -Infinity));
+    }
+    return articles;
+  }, [articles, sort]);
 
   return (
     <div className="space-y-8">
@@ -380,7 +398,7 @@ function SearchPageInner() {
       {!loading && articles.length > 0 && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="space-y-3">
-            {articles.map((a) => {
+            {displayedArticles.map((a) => {
               const relevance = summary?.paper_relevance?.find((r) => r.pmid === a.pmid);
               return (
                 <PaperCard
