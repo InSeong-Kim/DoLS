@@ -63,7 +63,15 @@ pubmedRouter.post("/search", optionalAuthMiddleware, async (req, res, next) => {
         .limit(retmax);
 
       if (data && data.length > 0) {
-        articles = data.map(rowToArticle);
+        // 과거에 같은 키워드로 여러 번 검색해 캐시에 중복 pmid가 쌓여있을 수 있으므로
+        // 읽을 때도 한 번 더 방어적으로 중복을 제거합니다(최근 것 우선).
+        const seen = new Set<string>();
+        const deduped = data.filter((row) => {
+          if (seen.has(row.pmid)) return false;
+          seen.add(row.pmid);
+          return true;
+        });
+        articles = deduped.map(rowToArticle);
         fromCache = true;
       }
     }
@@ -79,17 +87,33 @@ pubmedRouter.post("/search", optionalAuthMiddleware, async (req, res, next) => {
       });
 
       if (articles.length > 0) {
-        const rows = articles.map((a) => ({
-          keyword,
-          pmid: a.pmid,
-          title: a.title,
-          authors: a.authors,
-          journal: a.journal,
-          pub_year: a.pubYear,
-          abstract: a.abstract,
-        }));
+        // 이미 캐시된 pmid는 다시 넣지 않아 search_results에 중복이 쌓이는 것을 막습니다.
+        const { data: existing } = await supabaseAdmin
+          .from("search_results")
+          .select("pmid")
+          .eq("keyword", keyword)
+          .in(
+            "pmid",
+            articles.map((a) => a.pmid)
+          );
+        const existingPmids = new Set((existing ?? []).map((r) => r.pmid));
+
+        const rows = articles
+          .filter((a) => !existingPmids.has(a.pmid))
+          .map((a) => ({
+            keyword,
+            pmid: a.pmid,
+            title: a.title,
+            authors: a.authors,
+            journal: a.journal,
+            pub_year: a.pubYear,
+            abstract: a.abstract,
+          }));
+
         // 캐시 저장 실패는 검색 결과 반환을 막지 않습니다.
-        await supabaseAdmin.from("search_results").insert(rows);
+        if (rows.length > 0) {
+          await supabaseAdmin.from("search_results").insert(rows);
+        }
       }
     }
 

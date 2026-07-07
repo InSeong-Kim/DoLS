@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api, ApiError } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import { api, ApiError, getAccessToken } from "@/lib/api";
 import PaperCard from "@/components/PaperCard";
 import type { SavedPaper, SubscriptionCheckResult, UploadedPaper } from "@/types";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,6 +22,13 @@ export default function DashboardPage() {
   const [interestSaved, setInterestSaved] = useState(false);
 
   useEffect(() => {
+    // 대시보드도 로그인 전용입니다. 토큰이 없으면 보호된 API를 호출해 401을
+    // 유발하고 전체 새로고침으로 튕기는 대신, 바로 클라이언트 라우팅으로 보냅니다.
+    if (!getAccessToken()) {
+      router.replace("/login");
+      return;
+    }
+
     async function load() {
       try {
         const [saved, uploaded, subs, checks, profile] = await Promise.all([
@@ -42,7 +51,7 @@ export default function DashboardPage() {
       }
     }
     load();
-  }, []);
+  }, [router]);
 
   async function handleSaveInterest() {
     setSavingInterest(true);

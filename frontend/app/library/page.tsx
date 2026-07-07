@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import UploadDropzone from "@/components/UploadDropzone";
-import { api } from "@/lib/api";
+import { api, getAccessToken } from "@/lib/api";
 import type { SavedPaper, UploadedPaper } from "@/types";
 
 type ReadFilter = "all" | "read" | "unread";
 
 export default function LibraryPage() {
+  const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
   const [uploads, setUploads] = useState<UploadedPaper[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -24,18 +28,31 @@ export default function LibraryPage() {
 
   const [qaMessages, setQaMessages] = useState<Record<string, { question: string; answer: string }[]>>({});
 
+  // 라이브러리는 로그인 전용 페이지입니다. 토큰이 없으면 보호된 API를 호출해
+  // 401을 유발하고 전체 새로고침으로 튕기는 대신, 바로 클라이언트 라우팅으로
+  // 조용히 로그인 화면으로 보냅니다.
   useEffect(() => {
-    api.listUploads().then(setUploads).catch(() => {});
-  }, []);
+    if (!getAccessToken()) {
+      router.replace("/login");
+      return;
+    }
+    setCheckingAuth(false);
+  }, [router]);
 
   useEffect(() => {
+    if (checkingAuth) return;
+    api.listUploads().then(setUploads).catch(() => {});
+  }, [checkingAuth]);
+
+  useEffect(() => {
+    if (checkingAuth) return;
     setSavedLoading(true);
     api
       .listSavedPapers(savedFilter)
       .then(setSavedPapers)
       .catch(() => {})
       .finally(() => setSavedLoading(false));
-  }, [savedFilter]);
+  }, [checkingAuth, savedFilter]);
 
   async function handleFileSelected(file: File) {
     setUploading(true);
@@ -164,6 +181,10 @@ export default function LibraryPage() {
         ],
       }));
     }
+  }
+
+  if (checkingAuth) {
+    return <p className="text-sm text-navy-400">불러오는 중...</p>;
   }
 
   return (
