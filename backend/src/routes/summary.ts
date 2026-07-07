@@ -2,7 +2,7 @@ import { Router } from "express";
 import { optionalAuthMiddleware } from "../middlewares/optionalAuthMiddleware";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { supabaseAdmin } from "../db/supabaseClient";
-import { summarizeLiterature, askAboutPaper, SummaryResult } from "../services/llmService";
+import { summarizeLiterature, askAboutPaper, analyzeSinglePaper, SummaryResult } from "../services/llmService";
 import { PubmedArticle } from "../services/pubmedService";
 import { HttpError } from "../middlewares/errorHandler";
 
@@ -77,6 +77,31 @@ summaryRouter.post("/summarize", optionalAuthMiddleware, async (req, res, next) 
     }
 
     res.json({ summary, fromCache: false });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 논문 카드에서 "AI 분석 보기"를 눌렀을 때, 그 논문 한 편의 초록만 근거로
+// 핵심 기술/유전자/키워드/향후 방향을 온디맨드로 분석합니다(검색 목록 전체를
+// 미리 다 분석하지 않고, 사용자가 실제로 펼쳐본 논문만 계산합니다).
+summaryRouter.post("/summary/paper", async (req, res, next) => {
+  try {
+    const body = req.body as PubmedArticle;
+    if (!body?.pmid || !body?.title) {
+      throw new HttpError(400, "pmid, title이 필요합니다.");
+    }
+
+    const analysis = await analyzeSinglePaper({
+      pmid: body.pmid,
+      title: body.title,
+      authors: Array.isArray(body.authors) ? body.authors : [],
+      journal: body.journal ?? "",
+      pubYear: body.pubYear ?? null,
+      abstract: body.abstract ?? "",
+    });
+
+    res.json({ analysis });
   } catch (err) {
     next(err);
   }

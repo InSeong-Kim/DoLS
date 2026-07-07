@@ -140,6 +140,76 @@ export async function summarizeLiterature(
   }
 }
 
+export interface PaperAnalysisResult {
+  key_technologies: string[];
+  frequent_genes: string[];
+  keywords: string[];
+  future_directions: string;
+  raw?: string;
+}
+
+function fallbackPaperAnalysis(rawText: string): PaperAnalysisResult {
+  return {
+    key_technologies: [],
+    frequent_genes: [],
+    keywords: [],
+    future_directions: rawText,
+    raw: rawText,
+  };
+}
+
+// 논문 한 편의 초록만을 근거로 핵심 기술/유전자/키워드/향후 방향을 분석합니다.
+// (여러 논문을 종합하는 trend_summary는 전체 요약(summarizeLiterature) 전용이라
+// 개별 논문 분석에는 포함하지 않습니다.) PubMed API는 전체 원문의 방법/논의 절을
+// 따로 제공하지 않으므로, 초록 텍스트 안에 담긴 배경/방법/결과/논의 내용을 근거로 삼습니다.
+export async function analyzeSinglePaper(article: PubmedArticle): Promise<PaperAnalysisResult> {
+  const schemaDescription = `{
+  "key_technologies": ["string"],
+  "frequent_genes": ["string"],
+  "keywords": ["string"],
+  "future_directions": "string"
+}`;
+
+  const systemPrompt = `당신은 생명정보학(bioinformatics) 분야의 전공 문헌 분석 도우미입니다. 아래 JSON 스키마를 반드시 그대로 지켜서 응답하세요. 다른 설명이나 마크다운 없이 JSON 객체만 출력하세요.\n\n${schemaDescription}`;
+
+  const userPrompt = `아래는 논문 한 편의 제목과 초록입니다. 초록 안에 담긴 배경/방법/결과/논의 내용을 근거로, 이 논문에서 사용한 핵심 기술, 언급된 유전자, 핵심 키워드, 이 논문이 제시하는(또는 시사하는) 향후 연구 방향을 분석해 JSON으로 응답하세요.\n\nPMID: ${article.pmid}\n제목: ${article.title}\n저널: ${article.journal} (${article.pubYear ?? "연도 미상"})\n초록: ${article.abstract || "(초록 없음)"}`;
+
+  let content: string;
+  try {
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+    });
+    content = completion.choices[0]?.message?.content ?? "";
+  } catch {
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+    content = completion.choices[0]?.message?.content ?? "";
+  }
+
+  try {
+    const parsed = JSON.parse(content);
+    return {
+      key_technologies: toStringArray(parsed.key_technologies),
+      frequent_genes: toStringArray(parsed.frequent_genes),
+      keywords: toStringArray(parsed.keywords),
+      future_directions:
+        typeof parsed.future_directions === "string" ? parsed.future_directions : "",
+    };
+  } catch {
+    return fallbackPaperAnalysis(content);
+  }
+}
+
 // 저장된 논문 하나에 대한 AI 질의응답. 임베딩/벡터 검색 없이 초록 원문을
 // 프롬프트에 직접 포함하는 단순한 방식이며, 응답은 DB에 저장하지 않습니다.
 export async function askAboutPaper(

@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient";
 import type {
   KeywordSubscription,
+  PaperAnalysisResult,
   Profile,
   PubmedArticle,
   SavedPaper,
@@ -110,6 +111,12 @@ export const api = {
     request<{ summary: SummaryResult; fromCache: boolean }>("/api/summarize", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+
+  analyzePaper: (article: PubmedArticle) =>
+    request<{ analysis: PaperAnalysisResult }>("/api/summary/paper", {
+      method: "POST",
+      body: JSON.stringify(article),
     }),
 
   askAboutPaper: (body: { pmid?: string; title?: string; abstract?: string; question: string }) =>

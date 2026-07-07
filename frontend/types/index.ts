@@ -23,6 +23,14 @@ export interface SummaryResult {
   raw?: string;
 }
 
+export interface PaperAnalysisResult {
+  key_technologies: string[];
+  frequent_genes: string[];
+  keywords: string[];
+  future_directions: string;
+  raw?: string;
+}
+
 export interface SavedPaper {
   id: string;
   user_id: string;

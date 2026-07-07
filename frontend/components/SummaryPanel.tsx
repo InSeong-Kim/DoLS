@@ -1,25 +1,11 @@
 import type { LucideIcon } from "lucide-react";
 import { TrendingUp, Cpu, Dna, Tags, Compass, Sparkles, AlertTriangle } from "lucide-react";
+import ChipList from "./ChipList";
 import type { SummaryResult } from "@/types";
 
 interface SummaryPanelProps {
   summary: SummaryResult;
-}
-
-function ChipList({ items }: { items: string[] }) {
-  if (items.length === 0) return <p className="text-sm text-navy-400">해당 없음</p>;
-  return (
-    <div className="flex flex-wrap gap-2">
-      {items.map((item, idx) => (
-        <span
-          key={`${item}-${idx}`}
-          className="rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-700 ring-1 ring-inset ring-navy-100"
-        >
-          {item}
-        </span>
-      ))}
-    </div>
-  );
+  onChipClick?: (term: string) => void;
 }
 
 function Section({
@@ -44,7 +30,7 @@ function Section({
   );
 }
 
-export default function SummaryPanel({ summary }: SummaryPanelProps) {
+export default function SummaryPanel({ summary, onChipClick }: SummaryPanelProps) {
   if (summary.raw) {
     return (
       <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
@@ -69,15 +55,15 @@ export default function SummaryPanel({ summary }: SummaryPanelProps) {
       </Section>
 
       <Section icon={Cpu} title="핵심 기술">
-        <ChipList items={summary.key_technologies} />
+        <ChipList items={summary.key_technologies} onChipClick={onChipClick} />
       </Section>
 
       <Section icon={Dna} title="자주 언급된 유전자">
-        <ChipList items={summary.frequent_genes} />
+        <ChipList items={summary.frequent_genes} onChipClick={onChipClick} />
       </Section>
 
       <Section icon={Tags} title="핵심 키워드">
-        <ChipList items={summary.keywords} />
+        <ChipList items={summary.keywords} onChipClick={onChipClick} />
       </Section>
 
       <Section icon={Compass} title="향후 연구 방향">

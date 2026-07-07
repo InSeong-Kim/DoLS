@@ -9,6 +9,8 @@ import SummaryPanel from "@/components/SummaryPanel";
 import { useSearchState } from "@/lib/searchState";
 import type { KeywordSubscription, PubmedArticle, SubscriptionCheckResult } from "@/types";
 
+const QUICK_SEARCH_SUGGESTIONS = ["TP53", "CRISPR", "Alzheimer biomarker", "single-cell RNA-seq"];
+
 function SkeletonCard() {
   return (
     <div className="animate-pulse rounded-lg border border-navy-200 bg-white p-5 space-y-3">
@@ -156,6 +158,15 @@ function SearchPageInner() {
     runSearch(keyword);
   }
 
+  // 추천 검색어 칩, AI 요약의 유전자/키워드 칩 클릭 시 그 단어로 바로 재검색합니다.
+  function handleQuickSearch(term: string) {
+    setKeyword(term);
+    setAuthor("");
+    setYear("");
+    setJournal("");
+    runSearch(term);
+  }
+
   function handleForceRefresh() {
     runSearch(keyword, true);
   }
@@ -209,6 +220,7 @@ function SearchPageInner() {
   const alreadySubscribed = subscriptions.some(
     (s) => s.keyword.toLowerCase() === keyword.trim().toLowerCase()
   );
+  const hasActiveFilters = Boolean(author.trim() || year.trim() || journal.trim());
 
   // 정렬 드롭다운을 바꾸면 재검색 없이 즉시 화면에 반영합니다.
   // "최신순"은 이미 가진 결과를 pubYear 기준으로 바로 재정렬하고,
@@ -269,7 +281,7 @@ function SearchPageInner() {
                 return (
                   <>
                     {check.newArticles.map((a) => (
-                      <PaperCard key={a.pmid} article={a} />
+                      <PaperCard key={a.pmid} article={a} onChipClick={handleQuickSearch} />
                     ))}
                     <button
                       onClick={() => handleAck(expandedSubId)}
@@ -400,16 +412,37 @@ function SearchPageInner() {
       )}
 
       {!loading && !searched && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
-          <SearchIcon size={22} strokeWidth={1.75} className="text-navy-300" />
-          검색어를 입력해 PubMed 논문을 찾아보세요.
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-navy-200 px-4 py-12 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-navy-50 text-navy-400">
+            <SearchIcon size={22} strokeWidth={1.75} />
+          </span>
+          <p className="text-sm text-navy-400">검색어를 입력해 PubMed 논문을 찾아보세요.</p>
+          <div className="flex flex-wrap justify-center gap-2 pt-1">
+            {QUICK_SEARCH_SUGGESTIONS.map((term) => (
+              <button
+                key={term}
+                type="button"
+                onClick={() => handleQuickSearch(term)}
+                className="rounded-full border border-navy-200 bg-white px-3 py-1 text-xs font-medium text-navy-600 hover:border-navy-400 hover:text-navy-900"
+              >
+                {term}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {!loading && searched && articles.length === 0 && !error && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
-          <Inbox size={22} strokeWidth={1.75} className="text-navy-300" />
-          검색 결과가 없습니다.
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-navy-200 px-4 py-12 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-navy-50 text-navy-400">
+            <Inbox size={22} strokeWidth={1.75} />
+          </span>
+          <p className="text-sm text-navy-400">검색 결과가 없습니다.</p>
+          <p className="text-xs text-navy-300">
+            {hasActiveFilters
+              ? "저자·연도·저널 필터를 없애거나 다른 키워드로 다시 검색해보세요."
+              : "철자를 확인하거나 더 넓은 키워드로 다시 검색해보세요."}
+          </p>
         </div>
       )}
 
@@ -426,6 +459,7 @@ function SearchPageInner() {
                   saving={savingPmid === a.pmid}
                   onSave={handleSave}
                   relevance={relevance}
+                  onChipClick={handleQuickSearch}
                 />
               );
             })}
@@ -445,7 +479,9 @@ function SearchPageInner() {
                 {summaryError}
               </p>
             )}
-            {!summaryLoading && summary && <SummaryPanel summary={summary} />}
+            {!summaryLoading && summary && (
+              <SummaryPanel summary={summary} onChipClick={handleQuickSearch} />
+            )}
           </div>
         </div>
       )}
