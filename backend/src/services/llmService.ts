@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { PubmedArticle } from "./pubmedService";
-import { llmRequestQueue } from "../utils/requestQueue";
+import { llmJsonRequestQueue, llmProseRequestQueue } from "../utils/requestQueue";
 
 if (!process.env.OPENAI_API_KEY) {
   console.warn(
@@ -9,14 +9,28 @@ if (!process.env.OPENAI_API_KEY) {
   );
 }
 
+// 두 개의 OpenAI SDK 호환 provider를 나눠 씁니다:
+// - "prose" provider(OPENAI_*): 순수 한국어 문장 생성(용어 설명, 논문 Q&A)
+// - "json" provider(JSON_OPENAI_*): 칩+문단이 섞인 JSON 요약/분석(summarize, analyzeSinglePaper)
+// JSON_OPENAI_* 를 안 채우면 prose provider를 그대로 재사용합니다(기존 단일 provider 설정과 호환).
+// 이렇게 나누면 (예: Groq=json, Gemini=prose) 한 provider의 무료 한도가 다른 쪽에 영향을 안 줍니다.
 // apiKey가 없어도 서버 기동 시 OpenAI 생성자가 throw하지 않도록 placeholder로 대체합니다.
-// 실제 요약/질의응답 호출 시점에는 정상적으로 provider 에러가 발생합니다.
-const client = new OpenAI({
+const proseClient = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "placeholder-key",
   baseURL: process.env.OPENAI_BASE_URL || undefined,
 });
+const PROSE_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const hasSeparateJsonProvider = Boolean(process.env.JSON_OPENAI_API_KEY);
+const jsonClient = hasSeparateJsonProvider
+  ? new OpenAI({
+      apiKey: process.env.JSON_OPENAI_API_KEY,
+      baseURL: process.env.JSON_OPENAI_BASE_URL || undefined,
+    })
+  : proseClient;
+const JSON_MODEL = hasSeparateJsonProvider
+  ? process.env.JSON_OPENAI_MODEL || "gpt-4o-mini"
+  : PROSE_MODEL;
 
 type ChatMessage = { role: "system" | "user"; content: string };
 
@@ -29,13 +43,19 @@ function statusOf(err: unknown): number | undefined {
 // 대기 후 재시도합니다(그 외 에러는 즉시 전파).
 const RETRYABLE_STATUSES = [429, 503];
 
-async function requestCompletion(messages: ChatMessage[], useJsonFormat: boolean): Promise<string> {
+async function requestCompletion(
+  client: OpenAI,
+  model: string,
+  queue: { enqueue: <T>(run: () => Promise<T>) => Promise<T> },
+  messages: ChatMessage[],
+  useJsonFormat: boolean
+): Promise<string> {
   const maxRetries = 2;
   for (let attempt = 0; ; attempt++) {
     try {
-      const completion = await llmRequestQueue.enqueue(() =>
+      const completion = await queue.enqueue(() =>
         client.chat.completions.create({
-          model: MODEL,
+          model,
           messages,
           ...(useJsonFormat ? { response_format: { type: "json_object" as const } } : {}),
         })
@@ -52,24 +72,27 @@ async function requestCompletion(messages: ChatMessage[], useJsonFormat: boolean
   }
 }
 
-// JSON 스키마를 강제로 요청하는 호출용. response_format을 지원하지 않는 모델을 위해
-// (재시도로도 해결 안 되는 rate-limit류가 아닐 때만) response_format 없이 한 번 더 시도합니다.
+// JSON 스키마를 강제로 요청하는 호출용(요약/분석 provider). response_format을 지원하지
+// 않는 모델을 위해(재시도로도 해결 안 되는 rate-limit류가 아닐 때만) 한 번 더 시도합니다.
 async function chatJSON(systemPrompt: string, userPrompt: string): Promise<string> {
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
   ];
   try {
-    return await requestCompletion(messages, true);
+    return await requestCompletion(jsonClient, JSON_MODEL, llmJsonRequestQueue, messages, true);
   } catch (err) {
     const status = statusOf(err);
     if (status !== undefined && RETRYABLE_STATUSES.includes(status)) throw err;
-    return requestCompletion(messages, false);
+    return requestCompletion(jsonClient, JSON_MODEL, llmJsonRequestQueue, messages, false);
   }
 }
 
 async function chatPlain(systemPrompt: string, userPrompt: string): Promise<string> {
   return requestCompletion(
+    proseClient,
+    PROSE_MODEL,
+    llmProseRequestQueue,
     [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },

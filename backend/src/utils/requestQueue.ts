@@ -57,5 +57,9 @@ export const ncbiRequestQueue = new RequestQueue(requestsPerSecond);
 // Gemini/Groq 무료 티어는 분당 요청 수 제한이 낮아서(예: 분당 15회 안팎), 검색 한 번에
 // 요약/개별분석/용어설명이 겹쳐 나가면 금방 429에 걸립니다. LLM 호출도 NCBI처럼 큐를 통해
 // 속도를 제한해 애초에 한도에 안 걸리도록 합니다. 필요하면 LLM_REQUESTS_PER_MINUTE로 조절하세요.
+//
+// JSON(요약/분석)과 프로즈(설명/질의응답) 호출을 서로 다른 제공사로 나눠 쓸 수 있어서
+// (llmService.ts 참고), 큐도 두 개로 분리해 한쪽 제공사의 한도가 다른 쪽에 영향을 안 주게 합니다.
 const llmRequestsPerMinute = Number(process.env.LLM_REQUESTS_PER_MINUTE ?? 10);
-export const llmRequestQueue = RequestQueue.perMinute(llmRequestsPerMinute);
+export const llmJsonRequestQueue = RequestQueue.perMinute(llmRequestsPerMinute);
+export const llmProseRequestQueue = RequestQueue.perMinute(llmRequestsPerMinute);
