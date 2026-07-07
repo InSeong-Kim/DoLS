@@ -95,7 +95,7 @@ function SearchPageInner() {
     }
   }
 
-  async function runSearch(searchKeyword: string) {
+  async function runSearch(searchKeyword: string, forceRefresh = false) {
     if (!searchKeyword.trim()) return;
 
     setSearched(true);
@@ -112,6 +112,7 @@ function SearchPageInner() {
         author: author.trim() || undefined,
         year: year.trim() || undefined,
         journal: journal.trim() || undefined,
+        forceRefresh,
       });
       setArticles(results);
 
@@ -121,6 +122,7 @@ function SearchPageInner() {
           const { summary: result } = await api.summarize({
             keyword: searchKeyword.trim(),
             articles: results,
+            forceRefresh,
           });
           setSummary(result);
         } catch (err) {
@@ -144,6 +146,10 @@ function SearchPageInner() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     runSearch(keyword);
+  }
+
+  function handleForceRefresh() {
+    runSearch(keyword, true);
   }
 
   async function handleSave(article: PubmedArticle) {
@@ -274,6 +280,17 @@ function SearchPageInner() {
           >
             {loading ? "검색 중..." : "검색"}
           </button>
+          {searched && (
+            <button
+              type="button"
+              onClick={handleForceRefresh}
+              disabled={loading || !keyword.trim()}
+              title="캐시를 무시하고 PubMed에서 최신 결과를 다시 가져옵니다"
+              className="rounded-md border border-navy-300 px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50 disabled:opacity-50"
+            >
+              새로고침
+            </button>
+          )}
           {isLoggedIn && (
             <button
               type="button"
