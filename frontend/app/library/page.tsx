@@ -210,7 +210,13 @@ export default function LibraryPage() {
               {uploads.map((u) => (
                 <li key={u.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-navy-800">{u.filename}</p>
+                    <button
+                      onClick={() => handleDownload(u.id)}
+                      className="truncate text-left font-medium text-navy-800 hover:text-navy-600 hover:underline"
+                      title="클릭하면 새 탭에서 열립니다"
+                    >
+                      {u.filename}
+                    </button>
                     <p className="text-xs text-navy-400">
                       {new Date(u.upload_date).toLocaleString()}
                     </p>

@@ -47,7 +47,11 @@ libraryRouter.post("/upload", authMiddleware, (req, res, next) => {
       const file = req.file;
       if (!file) throw new HttpError(400, "업로드할 파일(file)이 필요합니다.");
 
-      const sanitized = file.originalname.replace(/[^\w.\-가-힣 ]/g, "_");
+      // multer/busboy는 multipart 파일명을 기본적으로 latin1로 디코딩하므로
+      // 한글 등 비ASCII 파일명이 깨집니다. utf8로 다시 디코딩해야 합니다.
+      const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
+
+      const sanitized = originalName.replace(/[^\w.\-가-힣 ]/g, "_");
       const storagePath = `${req.user!.id}/${Date.now()}_${sanitized}`;
 
       const { error: uploadError } = await supabaseAdmin.storage
@@ -60,7 +64,7 @@ libraryRouter.post("/upload", authMiddleware, (req, res, next) => {
         .from("uploaded_papers")
         .insert({
           user_id: req.user!.id,
-          filename: file.originalname,
+          filename: originalName,
           storage_path: storagePath,
           related_keyword: req.body?.related_keyword ?? null,
           memo: req.body?.memo ?? null,
