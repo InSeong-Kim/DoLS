@@ -51,7 +51,9 @@ libraryRouter.post("/upload", authMiddleware, (req, res, next) => {
       // 한글 등 비ASCII 파일명이 깨집니다. utf8로 다시 디코딩해야 합니다.
       const originalName = Buffer.from(file.originalname, "latin1").toString("utf8");
 
-      const sanitized = originalName.replace(/[^\w.\-가-힣 ]/g, "_");
+      // Storage 객체 키는 한글/공백을 허용하지 않으므로 ASCII로만 구성합니다.
+      // 화면에 보여줄 원본 파일명(originalName, 한글 포함)은 DB의 filename 컬럼에 그대로 저장합니다.
+      const sanitized = originalName.replace(/[^\w.-]/g, "_");
       const storagePath = `${req.user!.id}/${Date.now()}_${sanitized}`;
 
       const { error: uploadError } = await supabaseAdmin.storage
