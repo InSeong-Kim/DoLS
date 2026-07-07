@@ -17,6 +17,10 @@ class RequestQueue {
     this.intervalMs = Math.ceil(1000 / requestsPerSecond);
   }
 
+  static perMinute(requestsPerMinute: number): RequestQueue {
+    return new RequestQueue(requestsPerMinute / 60);
+  }
+
   setRate(requestsPerSecond: number) {
     this.intervalMs = Math.ceil(1000 / requestsPerSecond);
   }
@@ -49,3 +53,9 @@ class RequestQueue {
 
 const requestsPerSecond = process.env.NCBI_API_KEY ? 10 : 3;
 export const ncbiRequestQueue = new RequestQueue(requestsPerSecond);
+
+// Gemini/Groq 무료 티어는 분당 요청 수 제한이 낮아서(예: 분당 15회 안팎), 검색 한 번에
+// 요약/개별분석/용어설명이 겹쳐 나가면 금방 429에 걸립니다. LLM 호출도 NCBI처럼 큐를 통해
+// 속도를 제한해 애초에 한도에 안 걸리도록 합니다. 필요하면 LLM_REQUESTS_PER_MINUTE로 조절하세요.
+const llmRequestsPerMinute = Number(process.env.LLM_REQUESTS_PER_MINUTE ?? 10);
+export const llmRequestQueue = RequestQueue.perMinute(llmRequestsPerMinute);

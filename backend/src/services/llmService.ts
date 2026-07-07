@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { PubmedArticle } from "./pubmedService";
+import { llmRequestQueue } from "../utils/requestQueue";
 
 if (!process.env.OPENAI_API_KEY) {
   console.warn(
@@ -32,11 +33,13 @@ async function requestCompletion(messages: ChatMessage[], useJsonFormat: boolean
   const maxRetries = 2;
   for (let attempt = 0; ; attempt++) {
     try {
-      const completion = await client.chat.completions.create({
-        model: MODEL,
-        messages,
-        ...(useJsonFormat ? { response_format: { type: "json_object" as const } } : {}),
-      });
+      const completion = await llmRequestQueue.enqueue(() =>
+        client.chat.completions.create({
+          model: MODEL,
+          messages,
+          ...(useJsonFormat ? { response_format: { type: "json_object" as const } } : {}),
+        })
+      );
       return completion.choices[0]?.message?.content ?? "";
     } catch (err) {
       const status = statusOf(err);
