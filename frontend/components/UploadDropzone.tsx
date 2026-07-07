@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { UploadCloud, Loader2 } from "lucide-react";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
@@ -43,9 +44,16 @@ export default function UploadDropzone({ onFileSelected, uploading }: UploadDrop
         }}
         onClick={() => inputRef.current?.click()}
         className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
-          isDragging ? "border-navy-500 bg-navy-50" : "border-navy-200 bg-white"
+          isDragging ? "border-navy-500 bg-navy-50" : "border-navy-200 bg-white hover:border-navy-300"
         }`}
       >
+        <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-navy-50 text-navy-600">
+          {uploading ? (
+            <Loader2 size={18} strokeWidth={2.25} className="animate-spin" />
+          ) : (
+            <UploadCloud size={18} strokeWidth={2.25} />
+          )}
+        </span>
         <p className="text-sm font-medium text-navy-700">
           {uploading ? "업로드 중..." : "PDF를 드래그하거나 클릭해서 선택하세요"}
         </p>

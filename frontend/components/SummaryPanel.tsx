@@ -1,3 +1,5 @@
+import type { LucideIcon } from "lucide-react";
+import { TrendingUp, Cpu, Dna, Tags, Compass, Sparkles, AlertTriangle } from "lucide-react";
 import type { SummaryResult } from "@/types";
 
 interface SummaryPanelProps {
@@ -11,7 +13,7 @@ function ChipList({ items }: { items: string[] }) {
       {items.map((item, idx) => (
         <span
           key={`${item}-${idx}`}
-          className="rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-700"
+          className="rounded-full bg-navy-50 px-3 py-1 text-xs font-medium text-navy-700 ring-1 ring-inset ring-navy-100"
         >
           {item}
         </span>
@@ -20,11 +22,34 @@ function ChipList({ items }: { items: string[] }) {
   );
 }
 
+function Section({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-l-2 border-navy-100 pl-4">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-navy-900">
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-navy-50 text-navy-700">
+          <Icon size={13} strokeWidth={2.25} />
+        </span>
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+
 export default function SummaryPanel({ summary }: SummaryPanelProps) {
   if (summary.raw) {
     return (
-      <div className="rounded-lg border border-navy-200 bg-white p-6">
-        <p className="mb-3 text-xs font-medium text-navy-400">
+      <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
+        <p className="mb-3 flex items-center gap-1.5 text-xs font-medium text-amber-600">
+          <AlertTriangle size={13} strokeWidth={2.25} />
           AI 응답을 정해진 JSON 형식으로 해석하지 못해 원문을 그대로 표시합니다.
         </p>
         <p className="whitespace-pre-wrap text-sm text-navy-700">{summary.raw}</p>
@@ -33,31 +58,31 @@ export default function SummaryPanel({ summary }: SummaryPanelProps) {
   }
 
   return (
-    <div className="rounded-lg border border-navy-200 bg-white p-6 space-y-6">
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-navy-900">연구 동향</h3>
+    <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm space-y-6">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-navy-400">
+        <Sparkles size={14} strokeWidth={2.25} className="text-navy-500" />
+        AI 요약
+      </div>
+
+      <Section icon={TrendingUp} title="연구 동향">
         <p className="text-sm leading-relaxed text-navy-700">{summary.trend_summary || "요약 없음"}</p>
-      </div>
+      </Section>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-navy-900">핵심 기술</h3>
+      <Section icon={Cpu} title="핵심 기술">
         <ChipList items={summary.key_technologies} />
-      </div>
+      </Section>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-navy-900">자주 언급된 유전자</h3>
+      <Section icon={Dna} title="자주 언급된 유전자">
         <ChipList items={summary.frequent_genes} />
-      </div>
+      </Section>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-navy-900">핵심 키워드</h3>
+      <Section icon={Tags} title="핵심 키워드">
         <ChipList items={summary.keywords} />
-      </div>
+      </Section>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold text-navy-900">향후 연구 방향</h3>
+      <Section icon={Compass} title="향후 연구 방향">
         <p className="text-sm leading-relaxed text-navy-700">{summary.future_directions || "정보 없음"}</p>
-      </div>
+      </Section>
     </div>
   );
 }

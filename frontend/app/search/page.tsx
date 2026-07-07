@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Search as SearchIcon, RefreshCw, BellPlus, BellOff, Bell, X, AlertCircle, Inbox } from "lucide-react";
 import { api, ApiError, getAccessToken } from "@/lib/api";
 import PaperCard from "@/components/PaperCard";
 import SummaryPanel from "@/components/SummaryPanel";
@@ -228,8 +229,9 @@ function SearchPageInner() {
       </div>
 
       {isLoggedIn && subscriptions.length > 0 && (
-        <section className="rounded-lg border border-navy-200 bg-white p-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-navy-400">
+        <section className="rounded-lg border border-navy-200 bg-white p-4 shadow-sm">
+          <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-navy-400">
+            <Bell size={13} strokeWidth={2.25} />
             구독한 키워드
           </h2>
           <div className="flex flex-wrap gap-2">
@@ -241,7 +243,7 @@ function SearchPageInner() {
                   <button
                     onClick={() => newCount > 0 && setExpandedSubId(expandedSubId === sub.id ? null : sub.id)}
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      newCount > 0 ? "bg-navy-800 text-white" : "bg-navy-50 text-navy-500"
+                      newCount > 0 ? "bg-navy-800 text-white shadow-sm" : "bg-navy-50 text-navy-500"
                     }`}
                   >
                     {sub.keyword}
@@ -249,10 +251,10 @@ function SearchPageInner() {
                   </button>
                   <button
                     onClick={() => handleUnsubscribe(sub.id)}
-                    className="text-xs text-navy-300 hover:text-red-500"
+                    className="text-navy-300 hover:text-red-500"
                     title="구독 해제"
                   >
-                    ✕
+                    <X size={14} strokeWidth={2.25} />
                   </button>
                 </div>
               );
@@ -271,8 +273,9 @@ function SearchPageInner() {
                     ))}
                     <button
                       onClick={() => handleAck(expandedSubId)}
-                      className="text-xs font-medium text-navy-600 underline"
+                      className="flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-navy-900"
                     >
+                      <BellOff size={13} strokeWidth={2.25} />
                       확인 완료로 표시
                     </button>
                   </>
@@ -283,19 +286,27 @@ function SearchPageInner() {
         </section>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-navy-200 bg-white p-5">
+      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-navy-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-2 sm:flex-row">
-          <input
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            placeholder="검색 키워드 (예: TP53 hepatocellular carcinoma)"
-            className="flex-1 rounded-md border border-navy-200 px-3 py-2 text-sm outline-none focus:border-navy-500"
-          />
+          <div className="relative flex-1">
+            <SearchIcon
+              size={16}
+              strokeWidth={2}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-navy-300"
+            />
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              placeholder="검색 키워드 (예: TP53 hepatocellular carcinoma)"
+              className="w-full rounded-md border border-navy-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-navy-500"
+            />
+          </div>
           <button
             type="submit"
             disabled={loading}
-            className="rounded-md bg-navy-800 px-5 py-2 text-sm font-medium text-white hover:bg-navy-900 disabled:opacity-60"
+            className="flex items-center justify-center gap-1.5 rounded-md bg-navy-800 px-5 py-2 text-sm font-medium text-white shadow-sm hover:bg-navy-900 disabled:opacity-60"
           >
+            <SearchIcon size={15} strokeWidth={2.25} />
             {loading ? "검색 중..." : "검색"}
           </button>
           {searched && (
@@ -304,8 +315,9 @@ function SearchPageInner() {
               onClick={handleForceRefresh}
               disabled={loading || !keyword.trim()}
               title="캐시를 무시하고 PubMed에서 최신 결과를 다시 가져옵니다"
-              className="rounded-md border border-navy-300 px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-md border border-navy-300 px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50 disabled:opacity-50"
             >
+              <RefreshCw size={14} strokeWidth={2.25} />
               새로고침
             </button>
           )}
@@ -314,8 +326,9 @@ function SearchPageInner() {
               type="button"
               onClick={handleSubscribeKeyword}
               disabled={!keyword.trim() || alreadySubscribed || subscribing}
-              className="rounded-md border border-navy-300 px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-md border border-navy-300 px-4 py-2 text-sm font-medium text-navy-700 hover:bg-navy-50 disabled:opacity-50"
             >
+              {alreadySubscribed ? <Bell size={14} strokeWidth={2.25} /> : <BellPlus size={14} strokeWidth={2.25} />}
               {alreadySubscribed ? "구독 중" : "이 키워드 구독"}
             </button>
           )}
@@ -372,7 +385,10 @@ function SearchPageInner() {
       </form>
 
       {error && (
-        <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+        <p className="flex items-center gap-2 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertCircle size={15} strokeWidth={2.25} className="shrink-0" />
+          {error}
+        </p>
       )}
 
       {loading && (
@@ -384,15 +400,17 @@ function SearchPageInner() {
       )}
 
       {!loading && !searched && (
-        <p className="rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
+          <SearchIcon size={22} strokeWidth={1.75} className="text-navy-300" />
           검색어를 입력해 PubMed 논문을 찾아보세요.
-        </p>
+        </div>
       )}
 
       {!loading && searched && articles.length === 0 && !error && (
-        <p className="rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-navy-200 px-4 py-10 text-center text-sm text-navy-400">
+          <Inbox size={22} strokeWidth={1.75} className="text-navy-300" />
           검색 결과가 없습니다.
-        </p>
+        </div>
       )}
 
       {!loading && articles.length > 0 && (
@@ -422,7 +440,10 @@ function SearchPageInner() {
               </div>
             )}
             {summaryError && (
-              <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{summaryError}</p>
+              <p className="flex items-center gap-2 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+                <AlertCircle size={15} strokeWidth={2.25} className="shrink-0" />
+                {summaryError}
+              </p>
             )}
             {!summaryLoading && summary && <SummaryPanel summary={summary} />}
           </div>

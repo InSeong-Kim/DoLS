@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BookMarked, AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { setAccessToken } from "@/lib/api";
 
@@ -36,7 +37,10 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm rounded-lg border border-navy-200 bg-white p-8">
+      <div className="w-full max-w-sm rounded-lg border border-navy-200 bg-white p-8 shadow-md">
+        <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-navy-800 text-white shadow-sm">
+          <BookMarked size={19} strokeWidth={2.25} />
+        </span>
         <h1 className="text-2xl font-semibold text-navy-900">DoLS</h1>
         <p className="mt-1 mb-6 text-sm text-navy-400">로그인하고 문헌 검색을 시작하세요.</p>
 
@@ -62,12 +66,17 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <p className="flex items-center gap-1.5 text-sm text-red-600">
+              <AlertCircle size={14} strokeWidth={2.25} className="shrink-0" />
+              {error}
+            </p>
+          )}
 
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-md bg-navy-800 py-2 text-sm font-medium text-white hover:bg-navy-900 disabled:opacity-60"
+            className="w-full rounded-md bg-navy-800 py-2 text-sm font-medium text-white shadow-sm hover:bg-navy-900 disabled:opacity-60"
           >
             {submitting ? "로그인 중..." : "로그인"}
           </button>

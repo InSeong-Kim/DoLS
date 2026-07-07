@@ -2,6 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Upload,
+  Share2,
+  Copy,
+  Check,
+  FileText,
+  Download,
+  Trash2,
+  BookMarked,
+  ExternalLink,
+  MessageCircle,
+  MessageCircleOff,
+  CheckCircle2,
+  Circle,
+  Send,
+} from "lucide-react";
 import UploadDropzone from "@/components/UploadDropzone";
 import { api, getAccessToken } from "@/lib/api";
 import type { SavedPaper, UploadedPaper } from "@/types";
@@ -195,11 +211,14 @@ export default function LibraryPage() {
       </div>
 
       <section className="space-y-4">
-        <h2 className="text-sm font-semibold text-navy-900">PDF 업로드</h2>
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-navy-900">
+          <Upload size={16} strokeWidth={2.25} className="text-navy-500" />
+          PDF 업로드
+        </h2>
         <UploadDropzone onFileSelected={handleFileSelected} uploading={uploading} />
         {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
 
-        <div className="rounded-lg border border-navy-200 bg-white p-4">
+        <div className="rounded-lg border border-navy-200 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wide text-navy-400">
               업로드된 파일 ({uploads.length})
@@ -213,12 +232,13 @@ export default function LibraryPage() {
 
           {shareError && <p className="mb-2 text-xs text-red-600">{shareError}</p>}
           {shareEnabled && shareUrl && (
-            <div className="mb-3 flex items-center gap-2 rounded-md bg-navy-50 px-3 py-2 text-xs">
+            <div className="mb-3 flex items-center gap-2 rounded-md bg-navy-50 px-3 py-2 text-xs ring-1 ring-inset ring-navy-100">
               <span className="truncate text-navy-600">{shareUrl}</span>
               <button
                 onClick={handleCopyShareUrl}
-                className="shrink-0 font-medium text-navy-700 underline"
+                className="flex shrink-0 items-center gap-1 font-medium text-navy-700 hover:text-navy-900"
               >
+                {copyDone ? <Check size={13} strokeWidth={2.25} /> : <Copy size={13} strokeWidth={2.25} />}
                 {copyDone ? "복사됨" : "복사"}
               </button>
             </div>
@@ -230,29 +250,34 @@ export default function LibraryPage() {
             <ul className="divide-y divide-navy-100">
               {uploads.map((u) => (
                 <li key={u.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <button
-                      onClick={() => handleDownload(u.id)}
-                      className="truncate text-left font-medium text-navy-800 hover:text-navy-600 hover:underline"
-                      title="클릭하면 새 탭에서 열립니다"
-                    >
-                      {u.filename}
-                    </button>
-                    <p className="text-xs text-navy-400">
-                      {new Date(u.upload_date).toLocaleString()}
-                    </p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <FileText size={15} strokeWidth={2} className="shrink-0 text-navy-300" />
+                    <div className="min-w-0">
+                      <button
+                        onClick={() => handleDownload(u.id)}
+                        className="truncate text-left font-medium text-navy-800 hover:text-navy-600 hover:underline"
+                        title="클릭하면 새 탭에서 열립니다"
+                      >
+                        {u.filename}
+                      </button>
+                      <p className="text-xs text-navy-400">
+                        {new Date(u.upload_date).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex shrink-0 gap-3">
                     <button
                       onClick={() => handleDownload(u.id)}
-                      className="text-xs font-medium text-navy-600 underline"
+                      className="flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-navy-900"
                     >
+                      <Download size={13} strokeWidth={2.25} />
                       다운로드
                     </button>
                     <button
                       onClick={() => handleDeleteUpload(u.id)}
-                      className="text-xs font-medium text-red-500 underline"
+                      className="flex items-center gap-1 text-xs font-medium text-red-500 hover:text-red-600"
                     >
+                      <Trash2 size={13} strokeWidth={2.25} />
                       삭제
                     </button>
                   </div>
@@ -265,7 +290,10 @@ export default function LibraryPage() {
 
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-navy-900">저장한 PubMed 논문</h2>
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-navy-900">
+            <BookMarked size={16} strokeWidth={2.25} className="text-navy-500" />
+            저장한 PubMed 논문
+          </h2>
           <div className="flex gap-1 rounded-md bg-navy-50 p-1 text-xs">
             {(["all", "unread", "read"] as ReadFilter[]).map((f) => (
               <button
@@ -317,6 +345,7 @@ function ShareToggle({
 }) {
   return (
     <label className="flex items-center gap-2 text-xs text-navy-500">
+      <Share2 size={13} strokeWidth={2.25} className="text-navy-400" />
       공유 링크 생성
       <button
         type="button"
@@ -368,7 +397,7 @@ function SavedPaperRow({
   }
 
   return (
-    <div className="rounded-lg border border-navy-200 bg-white p-5 space-y-3">
+    <div className="rounded-lg border border-navy-200 bg-white p-5 space-y-3 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-navy-900">{paper.title}</h3>
@@ -381,8 +410,9 @@ function SavedPaperRow({
           href={`https://pubmed.ncbi.nlm.nih.gov/${paper.pmid}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="shrink-0 text-xs font-medium text-navy-500 underline"
+          className="flex shrink-0 items-center gap-1 text-xs font-medium text-navy-500 hover:text-navy-800"
         >
+          <ExternalLink size={12} strokeWidth={2.25} />
           PubMed
         </a>
       </div>
@@ -413,16 +443,22 @@ function SavedPaperRow({
       <div className="flex flex-wrap items-center gap-3 text-xs">
         <button
           onClick={onToggleRead}
-          className={`rounded-full px-2.5 py-1 font-medium ${
-            paper.is_read ? "bg-navy-700 text-white" : "bg-navy-50 text-navy-500"
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 font-medium shadow-sm ${
+            paper.is_read ? "bg-navy-700 text-white" : "bg-navy-50 text-navy-500 shadow-none"
           }`}
         >
+          {paper.is_read ? <CheckCircle2 size={13} strokeWidth={2.25} /> : <Circle size={13} strokeWidth={2.25} />}
           {paper.is_read ? "읽음" : "안읽음"}
         </button>
-        <button onClick={() => setQaOpen((v) => !v)} className="font-medium text-navy-600 underline">
+        <button
+          onClick={() => setQaOpen((v) => !v)}
+          className="flex items-center gap-1 font-medium text-navy-600 hover:text-navy-900"
+        >
+          {qaOpen ? <MessageCircleOff size={13} strokeWidth={2.25} /> : <MessageCircle size={13} strokeWidth={2.25} />}
           {qaOpen ? "AI 질의응답 닫기" : "AI에게 질문하기"}
         </button>
-        <button onClick={onDelete} className="font-medium text-red-500 underline">
+        <button onClick={onDelete} className="flex items-center gap-1 font-medium text-red-500 hover:text-red-600">
+          <Trash2 size={13} strokeWidth={2.25} />
           저장 취소
         </button>
       </div>
@@ -451,8 +487,9 @@ function SavedPaperRow({
             <button
               type="submit"
               disabled={asking || !question.trim()}
-              className="rounded-md bg-navy-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+              className="flex items-center gap-1 rounded-md bg-navy-800 px-3 py-1.5 text-xs font-medium text-white shadow-sm disabled:opacity-60"
             >
+              <Send size={13} strokeWidth={2.25} />
               전송
             </button>
           </form>

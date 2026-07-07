@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
+import { BookMarked, FileText, Bell, BellRing, Sparkles, FileStack } from "lucide-react";
 import { api, ApiError, getAccessToken } from "@/lib/api";
 import PaperCard from "@/components/PaperCard";
 import type { SavedPaper, SubscriptionCheckResult, UploadedPaper } from "@/types";
@@ -80,20 +82,23 @@ export default function DashboardPage() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="저장 논문 수" value={savedPapers.length} />
-        <StatCard label="업로드 PDF 수" value={uploads.length} />
-        <StatCard label="구독 중인 키워드 수" value={subscriptionCount} />
+        <StatCard icon={BookMarked} label="저장 논문 수" value={savedPapers.length} />
+        <StatCard icon={FileText} label="업로드 PDF 수" value={uploads.length} />
+        <StatCard icon={Bell} label="구독 중인 키워드 수" value={subscriptionCount} />
       </div>
 
       {newPaperBadges.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-navy-900">새 논문이 있는 구독 키워드</h2>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-navy-900">
+            <BellRing size={16} strokeWidth={2.25} className="text-navy-500" />
+            새 논문이 있는 구독 키워드
+          </h2>
           <div className="flex flex-wrap gap-2">
             {newPaperBadges.map(({ subscription, newArticles }) => (
               <Link
                 key={subscription.id}
                 href={`/search?keyword=${encodeURIComponent(subscription.keyword)}`}
-                className="rounded-full bg-navy-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-navy-900"
+                className="rounded-full bg-navy-800 px-3 py-1.5 text-xs font-medium text-white shadow-sm hover:bg-navy-900"
               >
                 {subscription.keyword} · 새 논문 {newArticles.length}편
               </Link>
@@ -102,8 +107,11 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <section className="rounded-lg border border-navy-200 bg-white p-6">
-        <h2 className="mb-1 text-sm font-semibold text-navy-900">내 연구 관심사</h2>
+      <section className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-navy-900">
+          <Sparkles size={16} strokeWidth={2.25} className="text-navy-500" />
+          내 연구 관심사
+        </h2>
         <p className="mb-3 text-xs text-navy-400">
           예: "간암에서의 TP53 돌연변이와 약물 저항성". 등록하면 검색 결과에 개인화 관련성이 표시됩니다.
         </p>
@@ -117,7 +125,7 @@ export default function DashboardPage() {
           <button
             onClick={handleSaveInterest}
             disabled={savingInterest}
-            className="rounded-md bg-navy-800 px-4 py-2 text-sm font-medium text-white hover:bg-navy-900 disabled:opacity-60"
+            className="rounded-md bg-navy-800 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-navy-900 disabled:opacity-60"
           >
             {savingInterest ? "저장 중..." : "저장"}
           </button>
@@ -126,7 +134,10 @@ export default function DashboardPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-navy-900">최근 저장한 논문</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-navy-900">
+          <BookMarked size={16} strokeWidth={2.25} className="text-navy-500" />
+          최근 저장한 논문
+        </h2>
         {savedPapers.length === 0 ? (
           <p className="text-sm text-navy-400">아직 저장한 논문이 없습니다.</p>
         ) : (
@@ -149,15 +160,19 @@ export default function DashboardPage() {
       </section>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-navy-900">최근 업로드한 PDF</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-navy-900">
+          <FileStack size={16} strokeWidth={2.25} className="text-navy-500" />
+          최근 업로드한 PDF
+        </h2>
         {uploads.length === 0 ? (
           <p className="text-sm text-navy-400">아직 업로드한 PDF가 없습니다.</p>
         ) : (
-          <ul className="divide-y divide-navy-100 rounded-lg border border-navy-200 bg-white">
+          <ul className="divide-y divide-navy-100 rounded-lg border border-navy-200 bg-white shadow-sm">
             {uploads.slice(0, 5).map((u) => (
-              <li key={u.id} className="flex items-center justify-between px-4 py-3 text-sm">
-                <span className="text-navy-700">{u.filename}</span>
-                <span className="text-navy-400">{new Date(u.upload_date).toLocaleDateString()}</span>
+              <li key={u.id} className="flex items-center gap-2 px-4 py-3 text-sm">
+                <FileText size={15} strokeWidth={2} className="shrink-0 text-navy-300" />
+                <span className="flex-1 truncate text-navy-700">{u.filename}</span>
+                <span className="shrink-0 text-navy-400">{new Date(u.upload_date).toLocaleDateString()}</span>
               </li>
             ))}
           </ul>
@@ -167,11 +182,16 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: number }) {
   return (
-    <div className="rounded-lg border border-navy-200 bg-white p-5">
-      <p className="text-xs text-navy-400">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-navy-900">{value}</p>
+    <div className="rounded-lg border border-navy-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-navy-50 text-navy-700">
+          <Icon size={16} strokeWidth={2.25} />
+        </span>
+        <p className="text-xs text-navy-400">{label}</p>
+      </div>
+      <p className="mt-2 text-2xl font-semibold text-navy-900">{value}</p>
     </div>
   );
 }

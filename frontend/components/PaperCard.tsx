@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ExternalLink, BookmarkPlus, BookmarkCheck, Users, Calendar, Sparkles } from "lucide-react";
 import type { PaperRelevance, PubmedArticle } from "@/types";
 
 interface PaperCardProps {
@@ -33,10 +34,13 @@ export default function PaperCard({ article, isSaved, onSave, saving, relevance 
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-lg border border-navy-200 bg-white p-5 space-y-3">
+    <div className="rounded-lg border border-navy-200 bg-white p-5 space-y-3 shadow-sm transition-shadow hover:shadow-md">
       {relevance && (
         <div className="flex items-start gap-2">
-          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${RELEVANCE_STYLE[relevance.score]}`}>
+          <span
+            className={`flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${RELEVANCE_STYLE[relevance.score]}`}
+          >
+            <Sparkles size={11} strokeWidth={2.25} />
             {RELEVANCE_LABEL[relevance.score]}
           </span>
           {relevance.comment && (
@@ -47,12 +51,16 @@ export default function PaperCard({ article, isSaved, onSave, saving, relevance 
 
       <h3 className="text-base font-semibold text-navy-900 leading-snug">{article.title}</h3>
 
-      <div className="text-sm text-navy-500">
-        {formatAuthors(article.authors)}
-      </div>
-      <div className="text-sm text-navy-400">
-        {article.journal || "저널 정보 없음"}
-        {article.pubYear ? ` · ${article.pubYear}` : ""}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-navy-500">
+        <span className="flex items-center gap-1.5">
+          <Users size={14} strokeWidth={2} className="text-navy-300" />
+          {formatAuthors(article.authors)}
+        </span>
+        <span className="flex items-center gap-1.5 text-navy-400">
+          <Calendar size={14} strokeWidth={2} className="text-navy-300" />
+          {article.journal || "저널 정보 없음"}
+          {article.pubYear ? ` · ${article.pubYear}` : ""}
+        </span>
       </div>
 
       {article.abstract && (
@@ -69,13 +77,14 @@ export default function PaperCard({ article, isSaved, onSave, saving, relevance 
         </div>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
+      <div className="flex items-center gap-4 pt-1">
         <a
           href={`https://pubmed.ncbi.nlm.nih.gov/${article.pmid}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm font-medium text-navy-600 underline hover:text-navy-900"
+          className="flex items-center gap-1.5 text-sm font-medium text-navy-600 hover:text-navy-900"
         >
+          <ExternalLink size={14} strokeWidth={2.25} />
           PubMed에서 보기
         </a>
 
@@ -83,12 +92,17 @@ export default function PaperCard({ article, isSaved, onSave, saving, relevance 
           <button
             onClick={() => onSave(article)}
             disabled={isSaved || saving}
-            className={`ml-auto rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`ml-auto flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium shadow-sm transition-colors ${
               isSaved
-                ? "cursor-default bg-navy-50 text-navy-400"
+                ? "cursor-default bg-navy-50 text-navy-400 shadow-none"
                 : "bg-navy-800 text-white hover:bg-navy-900"
             }`}
           >
+            {isSaved ? (
+              <BookmarkCheck size={15} strokeWidth={2.25} />
+            ) : (
+              <BookmarkPlus size={15} strokeWidth={2.25} />
+            )}
             {isSaved ? "저장됨" : saving ? "저장 중..." : "라이브러리에 저장"}
           </button>
         )}
