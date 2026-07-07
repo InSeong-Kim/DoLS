@@ -52,7 +52,9 @@ pubmedRouter.post("/search", optionalAuthMiddleware, async (req, res, next) => {
     let articles: PubmedArticle[] = [];
     let fromCache = false;
 
-    if (!forceRefresh && !hasFilters) {
+    // 캐시는 정렬 방식을 구분해 저장하지 않으므로, "최신순"은 정의상 캐시를 쓰지 않고
+    // 항상 PubMed에서 새로 가져옵니다 (그렇지 않으면 예전 "관련도순" 캐시가 그대로 반환됨).
+    if (!forceRefresh && !hasFilters && sort !== "date") {
       const { data } = await supabaseAdmin
         .from("search_results")
         .select("pmid, title, authors, journal, pub_year, abstract")
