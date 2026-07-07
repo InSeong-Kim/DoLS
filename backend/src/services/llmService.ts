@@ -17,6 +17,64 @@ const client = new OpenAI({
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
+type ChatMessage = { role: "system" | "user"; content: string };
+
+function statusOf(err: unknown): number | undefined {
+  return (err as { status?: number })?.status;
+}
+
+// Gemini/Groq 무료 티어는 분당 요청 제한이 낮아서 짧은 시간에 여러 번 호출하면
+// 429(rate limit)나 503(일시적 과부하)이 자주 발생합니다. 이 둘일 때만 짧게
+// 대기 후 재시도합니다(그 외 에러는 즉시 전파).
+const RETRYABLE_STATUSES = [429, 503];
+
+async function requestCompletion(messages: ChatMessage[], useJsonFormat: boolean): Promise<string> {
+  const maxRetries = 2;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const completion = await client.chat.completions.create({
+        model: MODEL,
+        messages,
+        ...(useJsonFormat ? { response_format: { type: "json_object" as const } } : {}),
+      });
+      return completion.choices[0]?.message?.content ?? "";
+    } catch (err) {
+      const status = statusOf(err);
+      if (status !== undefined && RETRYABLE_STATUSES.includes(status) && attempt < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, 2000 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+// JSON 스키마를 강제로 요청하는 호출용. response_format을 지원하지 않는 모델을 위해
+// (재시도로도 해결 안 되는 rate-limit류가 아닐 때만) response_format 없이 한 번 더 시도합니다.
+async function chatJSON(systemPrompt: string, userPrompt: string): Promise<string> {
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
+  try {
+    return await requestCompletion(messages, true);
+  } catch (err) {
+    const status = statusOf(err);
+    if (status !== undefined && RETRYABLE_STATUSES.includes(status)) throw err;
+    return requestCompletion(messages, false);
+  }
+}
+
+async function chatPlain(systemPrompt: string, userPrompt: string): Promise<string> {
+  return requestCompletion(
+    [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    false
+  );
+}
+
 export interface PaperRelevance {
   pmid: string;
   score: "high" | "medium" | "low";
@@ -92,28 +150,7 @@ export async function summarizeLiterature(
     articles
   )}\n\n이 논문들을 종합해 연구 동향, 핵심 기술, 자주 언급되는 유전자, 핵심 키워드, 향후 연구 방향을 분석해 JSON으로 응답하세요.${personalizeInstruction}`;
 
-  let content: string;
-  try {
-    const completion = await client.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    });
-    content = completion.choices[0]?.message?.content ?? "";
-  } catch {
-    // response_format을 지원하지 않는 모델(일부 무료 티어)을 위한 재시도.
-    const completion = await client.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
-    content = completion.choices[0]?.message?.content ?? "";
-  }
+  const content = await chatJSON(systemPrompt, userPrompt);
 
   try {
     const parsed = JSON.parse(content);
@@ -174,27 +211,7 @@ export async function analyzeSinglePaper(article: PubmedArticle): Promise<PaperA
 
   const userPrompt = `아래는 논문 한 편의 제목과 초록입니다. 초록 안에 담긴 배경/방법/결과/논의 내용을 근거로, 이 논문에서 사용한 핵심 기술, 언급된 유전자, 핵심 키워드, 이 논문이 제시하는(또는 시사하는) 향후 연구 방향을 분석해 JSON으로 응답하세요.\n\nPMID: ${article.pmid}\n제목: ${article.title}\n저널: ${article.journal} (${article.pubYear ?? "연도 미상"})\n초록: ${article.abstract || "(초록 없음)"}`;
 
-  let content: string;
-  try {
-    const completion = await client.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      response_format: { type: "json_object" },
-    });
-    content = completion.choices[0]?.message?.content ?? "";
-  } catch {
-    const completion = await client.chat.completions.create({
-      model: MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
-    content = completion.choices[0]?.message?.content ?? "";
-  }
+  const content = await chatJSON(systemPrompt, userPrompt);
 
   try {
     const parsed = JSON.parse(content);
@@ -220,15 +237,8 @@ export async function askAboutPaper(
     "당신은 생명정보학 논문을 설명해주는 도우미입니다. 주어진 논문의 제목과 초록만을 근거로 질문에 답하세요. 초록에 없는 내용은 추측하지 말고 알 수 없다고 답하세요.";
   const userPrompt = `논문 제목: ${paperContext.title}\n초록: ${paperContext.abstract || "(초록 없음)"}\n\n질문: ${question}`;
 
-  const completion = await client.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-  });
-
-  return completion.choices[0]?.message?.content ?? "답변을 생성하지 못했습니다.";
+  const content = await chatPlain(systemPrompt, userPrompt);
+  return content || "답변을 생성하지 못했습니다.";
 }
 
 // 핵심 기술/유전자/키워드 칩을 눌렀을 때, 그 용어 자체가 무엇인지 짧게 설명합니다.
@@ -239,13 +249,6 @@ export async function explainTerm(term: string): Promise<string> {
     "당신은 생명정보학(bioinformatics) 용어를 쉽게 설명해주는 도우미입니다. 전공자가 아니어도 이해할 수 있도록, 이 용어가 무엇이고 왜 중요한지 2~4문장으로 간결하게 한국어로 설명하세요. 마크다운이나 목록 없이 자연스러운 문장으로만 답하세요.";
   const userPrompt = `다음 생명정보학 관련 용어(유전자, 기술, 또는 키워드)를 설명해주세요: "${term}"`;
 
-  const completion = await client.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-  });
-
-  return completion.choices[0]?.message?.content ?? "설명을 생성하지 못했습니다.";
+  const content = await chatPlain(systemPrompt, userPrompt);
+  return content || "설명을 생성하지 못했습니다.";
 }
