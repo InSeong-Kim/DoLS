@@ -27,7 +27,6 @@ interface PaperCardProps {
   onSave?: (article: PubmedArticle) => void;
   saving?: boolean;
   relevance?: PaperRelevance;
-  onChipClick?: (term: string) => void;
 }
 
 function formatAuthors(authors: string[]): string {
@@ -54,7 +53,6 @@ export default function PaperCard({
   onSave,
   saving,
   relevance,
-  onChipClick,
 }: PaperCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -197,21 +195,21 @@ export default function PaperCard({
                   <Cpu size={12} strokeWidth={2.25} />
                   핵심 기술
                 </h4>
-                <ChipList items={analysis.key_technologies} onChipClick={onChipClick} />
+                <ChipList items={analysis.key_technologies} />
               </div>
               <div>
                 <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-navy-800">
                   <Dna size={12} strokeWidth={2.25} />
                   언급된 유전자
                 </h4>
-                <ChipList items={analysis.frequent_genes} onChipClick={onChipClick} />
+                <ChipList items={analysis.frequent_genes} />
               </div>
               <div>
                 <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-navy-800">
                   <Tags size={12} strokeWidth={2.25} />
                   핵심 키워드
                 </h4>
-                <ChipList items={analysis.keywords} onChipClick={onChipClick} />
+                <ChipList items={analysis.keywords} />
               </div>
               <div>
                 <h4 className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-navy-800">

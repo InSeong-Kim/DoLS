@@ -230,3 +230,22 @@ export async function askAboutPaper(
 
   return completion.choices[0]?.message?.content ?? "답변을 생성하지 못했습니다.";
 }
+
+// 핵심 기술/유전자/키워드 칩을 눌렀을 때, 그 용어 자체가 무엇인지 짧게 설명합니다.
+// 특정 논문에 종속되지 않는 일반 용어 설명이며(어느 논문의 칩에서 눌렀는지는 구분하지 않음),
+// 검색을 다시 실행하는 게 아니라 이 응답만 그 자리에 표시합니다.
+export async function explainTerm(term: string): Promise<string> {
+  const systemPrompt =
+    "당신은 생명정보학(bioinformatics) 용어를 쉽게 설명해주는 도우미입니다. 전공자가 아니어도 이해할 수 있도록, 이 용어가 무엇이고 왜 중요한지 2~4문장으로 간결하게 한국어로 설명하세요. 마크다운이나 목록 없이 자연스러운 문장으로만 답하세요.";
+  const userPrompt = `다음 생명정보학 관련 용어(유전자, 기술, 또는 키워드)를 설명해주세요: "${term}"`;
+
+  const completion = await client.chat.completions.create({
+    model: MODEL,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+  });
+
+  return completion.choices[0]?.message?.content ?? "설명을 생성하지 못했습니다.";
+}

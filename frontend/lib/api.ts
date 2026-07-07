@@ -119,6 +119,12 @@ export const api = {
       body: JSON.stringify(article),
     }),
 
+  explainTerm: (term: string) =>
+    request<{ explanation: string }>("/api/summary/explain", {
+      method: "POST",
+      body: JSON.stringify({ term }),
+    }),
+
   askAboutPaper: (body: { pmid?: string; title?: string; abstract?: string; question: string }) =>
     request<{ answer: string }>("/api/summary/ask", {
       method: "POST",

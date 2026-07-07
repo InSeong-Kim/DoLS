@@ -281,7 +281,7 @@ function SearchPageInner() {
                 return (
                   <>
                     {check.newArticles.map((a) => (
-                      <PaperCard key={a.pmid} article={a} onChipClick={handleQuickSearch} />
+                      <PaperCard key={a.pmid} article={a} />
                     ))}
                     <button
                       onClick={() => handleAck(expandedSubId)}
@@ -459,7 +459,6 @@ function SearchPageInner() {
                   saving={savingPmid === a.pmid}
                   onSave={handleSave}
                   relevance={relevance}
-                  onChipClick={handleQuickSearch}
                 />
               );
             })}
@@ -479,9 +478,7 @@ function SearchPageInner() {
                 {summaryError}
               </p>
             )}
-            {!summaryLoading && summary && (
-              <SummaryPanel summary={summary} onChipClick={handleQuickSearch} />
-            )}
+            {!summaryLoading && summary && <SummaryPanel summary={summary} />}
           </div>
         </div>
       )}

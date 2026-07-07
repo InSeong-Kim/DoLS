@@ -5,7 +5,6 @@ import type { SummaryResult } from "@/types";
 
 interface SummaryPanelProps {
   summary: SummaryResult;
-  onChipClick?: (term: string) => void;
 }
 
 function Section({
@@ -30,7 +29,7 @@ function Section({
   );
 }
 
-export default function SummaryPanel({ summary, onChipClick }: SummaryPanelProps) {
+export default function SummaryPanel({ summary }: SummaryPanelProps) {
   if (summary.raw) {
     return (
       <div className="rounded-lg border border-navy-200 bg-white p-6 shadow-sm">
@@ -55,15 +54,15 @@ export default function SummaryPanel({ summary, onChipClick }: SummaryPanelProps
       </Section>
 
       <Section icon={Cpu} title="핵심 기술">
-        <ChipList items={summary.key_technologies} onChipClick={onChipClick} />
+        <ChipList items={summary.key_technologies} />
       </Section>
 
       <Section icon={Dna} title="자주 언급된 유전자">
-        <ChipList items={summary.frequent_genes} onChipClick={onChipClick} />
+        <ChipList items={summary.frequent_genes} />
       </Section>
 
       <Section icon={Tags} title="핵심 키워드">
-        <ChipList items={summary.keywords} onChipClick={onChipClick} />
+        <ChipList items={summary.keywords} />
       </Section>
 
       <Section icon={Compass} title="향후 연구 방향">

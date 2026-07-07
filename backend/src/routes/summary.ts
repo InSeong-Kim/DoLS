@@ -2,7 +2,13 @@ import { Router } from "express";
 import { optionalAuthMiddleware } from "../middlewares/optionalAuthMiddleware";
 import { authMiddleware } from "../middlewares/authMiddleware";
 import { supabaseAdmin } from "../db/supabaseClient";
-import { summarizeLiterature, askAboutPaper, analyzeSinglePaper, SummaryResult } from "../services/llmService";
+import {
+  summarizeLiterature,
+  askAboutPaper,
+  analyzeSinglePaper,
+  explainTerm,
+  SummaryResult,
+} from "../services/llmService";
 import { PubmedArticle } from "../services/pubmedService";
 import { HttpError } from "../middlewares/errorHandler";
 
@@ -102,6 +108,20 @@ summaryRouter.post("/summary/paper", async (req, res, next) => {
     });
 
     res.json({ analysis });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 핵심 기술/유전자/키워드 칩을 눌렀을 때 그 용어가 무엇인지 짧게 설명합니다.
+// 재검색이 아니라 이 응답만 그 자리에 표시하는 용도입니다.
+summaryRouter.post("/summary/explain", async (req, res, next) => {
+  try {
+    const term = String(req.body?.term ?? "").trim();
+    if (!term) throw new HttpError(400, "term이 필요합니다.");
+
+    const explanation = await explainTerm(term);
+    res.json({ explanation });
   } catch (err) {
     next(err);
   }
