@@ -75,6 +75,44 @@ create policy "summaries_public_read" on public.summaries
   for select using (true);
 
 -- ---------------------------------------------------------------------
+-- paper_analyses: 논문(PMID) 단위 AI 개별 분석의 전역 캐시
+-- ---------------------------------------------------------------------
+create table if not exists public.paper_analyses (
+  id uuid primary key default gen_random_uuid(),
+  pmid text not null,
+  key_technologies jsonb not null default '[]',
+  frequent_genes jsonb not null default '[]',
+  keywords jsonb not null default '[]',
+  future_directions text,
+  created_date timestamptz not null default now()
+);
+
+create index if not exists idx_paper_analyses_pmid on public.paper_analyses (pmid);
+
+alter table public.paper_analyses enable row level security;
+
+create policy "paper_analyses_public_read" on public.paper_analyses
+  for select using (true);
+
+-- ---------------------------------------------------------------------
+-- term_explanations: 용어(칩) 단위 AI 설명의 전역 캐시. term은 소문자로
+-- 정규화해 저장합니다(같은 용어의 대소문자 표기 차이를 하나로 합치기 위함).
+-- ---------------------------------------------------------------------
+create table if not exists public.term_explanations (
+  id uuid primary key default gen_random_uuid(),
+  term text not null,
+  explanation text not null,
+  created_date timestamptz not null default now()
+);
+
+create index if not exists idx_term_explanations_term on public.term_explanations (term);
+
+alter table public.term_explanations enable row level security;
+
+create policy "term_explanations_public_read" on public.term_explanations
+  for select using (true);
+
+-- ---------------------------------------------------------------------
 -- uploaded_papers: 사용자별 PDF 업로드 메타데이터
 -- ---------------------------------------------------------------------
 create table if not exists public.uploaded_papers (

@@ -32,6 +32,10 @@ const JSON_MODEL = hasSeparateJsonProvider
   ? process.env.JSON_OPENAI_MODEL || "gpt-4o-mini"
   : PROSE_MODEL;
 
+// provider가 분리돼 있지 않으면(JSON_OPENAI_* 미설정) json/prose 호출이 결국 같은
+// API 키로 나가므로, 큐도 하나만 써서 실제 provider의 분당 한도를 넘기지 않게 합니다.
+const jsonQueue = hasSeparateJsonProvider ? llmJsonRequestQueue : llmProseRequestQueue;
+
 type ChatMessage = { role: "system" | "user"; content: string };
 
 function statusOf(err: unknown): number | undefined {
@@ -80,11 +84,11 @@ async function chatJSON(systemPrompt: string, userPrompt: string): Promise<strin
     { role: "user", content: userPrompt },
   ];
   try {
-    return await requestCompletion(jsonClient, JSON_MODEL, llmJsonRequestQueue, messages, true);
+    return await requestCompletion(jsonClient, JSON_MODEL, jsonQueue, messages, true);
   } catch (err) {
     const status = statusOf(err);
     if (status !== undefined && RETRYABLE_STATUSES.includes(status)) throw err;
-    return requestCompletion(jsonClient, JSON_MODEL, llmJsonRequestQueue, messages, false);
+    return requestCompletion(jsonClient, JSON_MODEL, jsonQueue, messages, false);
   }
 }
 

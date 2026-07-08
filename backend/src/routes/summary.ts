@@ -8,6 +8,7 @@ import {
   analyzeSinglePaper,
   explainTerm,
   SummaryResult,
+  PaperAnalysisResult,
 } from "../services/llmService";
 import { PubmedArticle } from "../services/pubmedService";
 import { HttpError } from "../middlewares/errorHandler";
@@ -23,6 +24,15 @@ interface SummarizeRequestBody {
 function rowToSummary(row: any): SummaryResult {
   return {
     trend_summary: row.trend_summary ?? "",
+    key_technologies: Array.isArray(row.key_technologies) ? row.key_technologies : [],
+    frequent_genes: Array.isArray(row.frequent_genes) ? row.frequent_genes : [],
+    keywords: Array.isArray(row.keywords) ? row.keywords : [],
+    future_directions: row.future_directions ?? "",
+  };
+}
+
+function rowToPaperAnalysis(row: any): PaperAnalysisResult {
+  return {
     key_technologies: Array.isArray(row.key_technologies) ? row.key_technologies : [],
     frequent_genes: Array.isArray(row.frequent_genes) ? row.frequent_genes : [],
     keywords: Array.isArray(row.keywords) ? row.keywords : [],
@@ -98,6 +108,18 @@ summaryRouter.post("/summary/paper", async (req, res, next) => {
       throw new HttpError(400, "pmid, title이 필요합니다.");
     }
 
+    const { data: cached } = await supabaseAdmin
+      .from("paper_analyses")
+      .select("*")
+      .eq("pmid", body.pmid)
+      .order("created_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cached) {
+      return res.json({ analysis: rowToPaperAnalysis(cached), fromCache: true });
+    }
+
     const analysis = await analyzeSinglePaper({
       pmid: body.pmid,
       title: body.title,
@@ -107,7 +129,15 @@ summaryRouter.post("/summary/paper", async (req, res, next) => {
       abstract: body.abstract ?? "",
     });
 
-    res.json({ analysis });
+    await supabaseAdmin.from("paper_analyses").insert({
+      pmid: body.pmid,
+      key_technologies: analysis.key_technologies,
+      frequent_genes: analysis.frequent_genes,
+      keywords: analysis.keywords,
+      future_directions: analysis.future_directions,
+    });
+
+    res.json({ analysis, fromCache: false });
   } catch (err) {
     next(err);
   }
@@ -119,9 +149,24 @@ summaryRouter.post("/summary/explain", async (req, res, next) => {
   try {
     const term = String(req.body?.term ?? "").trim();
     if (!term) throw new HttpError(400, "term이 필요합니다.");
+    const normalizedTerm = term.toLowerCase();
+
+    const { data: cached } = await supabaseAdmin
+      .from("term_explanations")
+      .select("explanation")
+      .eq("term", normalizedTerm)
+      .order("created_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (cached) {
+      return res.json({ explanation: cached.explanation, fromCache: true });
+    }
 
     const explanation = await explainTerm(term);
-    res.json({ explanation });
+    await supabaseAdmin.from("term_explanations").insert({ term: normalizedTerm, explanation });
+
+    res.json({ explanation, fromCache: false });
   } catch (err) {
     next(err);
   }
