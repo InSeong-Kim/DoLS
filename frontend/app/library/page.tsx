@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Upload,
@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Circle,
   Send,
+  Search,
 } from "lucide-react";
 import UploadDropzone from "@/components/UploadDropzone";
 import { api, getAccessToken } from "@/lib/api";
@@ -35,6 +36,7 @@ export default function LibraryPage() {
   const [savedPapers, setSavedPapers] = useState<SavedPaper[]>([]);
   const [savedFilter, setSavedFilter] = useState<ReadFilter>("all");
   const [savedLoading, setSavedLoading] = useState(true);
+  const [savedSearchQuery, setSavedSearchQuery] = useState("");
 
   const [shareEnabled, setShareEnabled] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -129,6 +131,17 @@ export default function LibraryPage() {
     setCopyDone(true);
     setTimeout(() => setCopyDone(false), 2000);
   }
+
+  const filteredSavedPapers = useMemo(() => {
+    const q = savedSearchQuery.trim().toLowerCase();
+    if (!q) return savedPapers;
+    return savedPapers.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.memo ?? "").toLowerCase().includes(q) ||
+        p.tags.some((t) => t.toLowerCase().includes(q))
+    );
+  }, [savedPapers, savedSearchQuery]);
 
   function updateSavedPaperLocal(id: string, patch: Partial<SavedPaper>) {
     setSavedPapers((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -309,13 +322,29 @@ export default function LibraryPage() {
           </div>
         </div>
 
+        <div className="relative">
+          <Search
+            size={14}
+            strokeWidth={2.25}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-navy-300"
+          />
+          <input
+            value={savedSearchQuery}
+            onChange={(e) => setSavedSearchQuery(e.target.value)}
+            placeholder="제목, 메모, 태그로 검색"
+            className="w-full rounded-md border border-navy-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-navy-500"
+          />
+        </div>
+
         {savedLoading ? (
           <p className="text-sm text-navy-400">불러오는 중...</p>
         ) : savedPapers.length === 0 ? (
           <p className="text-sm text-navy-400">저장한 논문이 없습니다.</p>
+        ) : filteredSavedPapers.length === 0 ? (
+          <p className="text-sm text-navy-400">검색 결과가 없습니다.</p>
         ) : (
           <div className="space-y-3">
-            {savedPapers.map((paper) => (
+            {filteredSavedPapers.map((paper) => (
               <SavedPaperRow
                 key={paper.id}
                 paper={paper}
