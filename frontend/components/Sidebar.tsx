@@ -33,7 +33,7 @@ export default function Sidebar() {
           </span>
           <div>
             <span className="block text-xl font-semibold tracking-tight text-navy-900">DoLS</span>
-            <p className="text-xs text-navy-400">PubMed 문헌 요약 &amp; 트렌드 분석</p>
+            <p className="text-xs text-navy-400">Research Workspace</p>
           </div>
         </div>
         <nav className="flex-1 px-3 space-y-1">
