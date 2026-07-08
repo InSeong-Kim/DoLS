@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search as SearchIcon, RefreshCw, BellPlus, BellOff, Bell, X, AlertCircle, Inbox } from "lucide-react";
+import { Search as SearchIcon, RefreshCw, BellPlus, BellOff, Bell, X, AlertCircle, Inbox, History } from "lucide-react";
 import { api, ApiError, getAccessToken } from "@/lib/api";
 import PaperCard from "@/components/PaperCard";
 import SummaryPanel from "@/components/SummaryPanel";
@@ -10,6 +10,24 @@ import { useSearchState } from "@/lib/searchState";
 import type { KeywordSubscription, PubmedArticle, SubscriptionCheckResult } from "@/types";
 
 const QUICK_SEARCH_SUGGESTIONS = ["TP53", "CRISPR", "Alzheimer biomarker", "single-cell RNA-seq"];
+
+const RECENT_SEARCHES_KEY = "dols_recent_searches";
+const MAX_RECENT_SEARCHES = 6;
+
+function loadRecentSearches(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(RECENT_SEARCHES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearches(list: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list));
+}
 
 function SkeletonCard() {
   return (
@@ -68,6 +86,23 @@ function SearchPageInner() {
   const [subscriptions, setSubscriptions] = useState<KeywordSubscription[]>([]);
   const [checks, setChecks] = useState<SubscriptionCheckResult[]>([]);
   const [subscribing, setSubscribing] = useState(false);
+
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  useEffect(() => {
+    setRecentSearches(loadRecentSearches());
+  }, []);
+
+  function pushRecentSearch(term: string) {
+    setRecentSearches((prev) => {
+      const next = [term, ...prev.filter((t) => t.toLowerCase() !== term.toLowerCase())].slice(
+        0,
+        MAX_RECENT_SEARCHES
+      );
+      saveRecentSearches(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     setIsLoggedIn(Boolean(getAccessToken()));
@@ -129,6 +164,7 @@ function SearchPageInner() {
         forceRefresh,
       });
       setArticles(results);
+      pushRecentSearch(searchKeyword.trim());
 
       if (results.length > 0) {
         setSummaryLoading(true);
@@ -406,18 +442,39 @@ function SearchPageInner() {
             <SearchIcon size={22} strokeWidth={1.75} />
           </span>
           <p className="text-sm text-navy-400">검색어를 입력해 PubMed 논문을 찾아보세요.</p>
-          <div className="flex flex-wrap justify-center gap-2 pt-1">
-            {QUICK_SEARCH_SUGGESTIONS.map((term) => (
-              <button
-                key={term}
-                type="button"
-                onClick={() => handleQuickSearch(term)}
-                className="rounded-full border border-navy-200 bg-white px-3 py-1 text-xs font-medium text-navy-600 hover:border-navy-400 hover:text-navy-900"
-              >
-                {term}
-              </button>
-            ))}
-          </div>
+          {recentSearches.length > 0 ? (
+            <div className="pt-1">
+              <p className="mb-2 flex items-center justify-center gap-1 text-xs font-medium text-navy-400">
+                <History size={12} strokeWidth={2.25} />
+                최근 검색어
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {recentSearches.map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    onClick={() => handleQuickSearch(term)}
+                    className="rounded-full border border-navy-200 bg-white px-3 py-1 text-xs font-medium text-navy-600 hover:border-navy-400 hover:text-navy-900"
+                  >
+                    {term}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap justify-center gap-2 pt-1">
+              {QUICK_SEARCH_SUGGESTIONS.map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  onClick={() => handleQuickSearch(term)}
+                  className="rounded-full border border-navy-200 bg-white px-3 py-1 text-xs font-medium text-navy-600 hover:border-navy-400 hover:text-navy-900"
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
