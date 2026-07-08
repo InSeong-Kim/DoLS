@@ -5,6 +5,7 @@ export interface PubmedArticle {
   journal: string;
   pubYear: number | null;
   abstract: string;
+  pubDate?: string | null;
 }
 
 export interface PaperRelevance {

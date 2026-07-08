@@ -64,7 +64,10 @@ subscriptionsRouter.get("/check", async (req, res, next) => {
 
     const results = await Promise.all(
       (subs ?? []).map(async (sub) => {
-        const lastCheckedYear = new Date(sub.last_checked_date).getFullYear();
+        // 연도만으로 비교하면 같은 해에는 매번 같은 논문들이 "새 논문"으로 다시 잡히므로,
+        // pubDate(YYYY-MM-DD, 월/일을 모르면 그 해 1월 1일로 보수적으로 채워짐)를
+        // last_checked_date의 날짜 부분과 문자열 비교합니다.
+        const lastCheckedDateStr = String(sub.last_checked_date).slice(0, 10);
         let newArticles: Awaited<ReturnType<typeof searchPubmed>> = [];
         try {
           const articles = await searchPubmed({
@@ -73,7 +76,7 @@ subscriptionsRouter.get("/check", async (req, res, next) => {
             sort: "date",
           });
           newArticles = articles.filter(
-            (a) => a.pubYear !== null && a.pubYear >= lastCheckedYear
+            (a) => a.pubDate !== null && a.pubDate >= lastCheckedDateStr
           );
         } catch {
           // 개별 키워드 조회 실패는 다른 키워드 확인을 막지 않습니다.

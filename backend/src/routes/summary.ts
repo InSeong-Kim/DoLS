@@ -127,6 +127,7 @@ summaryRouter.post("/summary/paper", async (req, res, next) => {
       journal: body.journal ?? "",
       pubYear: body.pubYear ?? null,
       abstract: body.abstract ?? "",
+      pubDate: null,
     });
 
     await supabaseAdmin.from("paper_analyses").insert({

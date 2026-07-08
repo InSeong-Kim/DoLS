@@ -30,6 +30,8 @@ function rowToArticle(row: any): PubmedArticle {
     journal: row.journal ?? "",
     pubYear: row.pub_year ?? null,
     abstract: row.abstract ?? "",
+    // 캐시(search_results)에는 연도만 저장되므로 정밀 날짜는 알 수 없습니다.
+    pubDate: null,
   };
 }
 

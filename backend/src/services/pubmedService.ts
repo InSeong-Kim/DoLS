@@ -13,6 +13,9 @@ export interface PubmedArticle {
   journal: string;
   pubYear: number | null;
   abstract: string;
+  // 가능한 만큼 정밀하게(YYYY-MM-DD) 뽑은 발행일. 월/일을 알 수 없으면 그 해
+  // 1월 1일로 보수적으로 채워, 구독 키워드의 "새 논문" 판단에 사용합니다.
+  pubDate: string | null;
 }
 
 export interface SearchPubmedParams {
@@ -27,6 +30,37 @@ export interface SearchPubmedParams {
 function asArray<T>(value: T | T[] | undefined | null): T[] {
   if (value === undefined || value === null) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+const MONTH_ABBREVIATIONS: Record<string, number> = {
+  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+};
+
+function parseMonth(raw: unknown): number | null {
+  if (raw === undefined || raw === null) return null;
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return null;
+  const numeric = parseInt(s, 10);
+  if (!Number.isNaN(numeric) && numeric >= 1 && numeric <= 12) return numeric;
+  return MONTH_ABBREVIATIONS[s.slice(0, 3)] ?? null;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+// PubDate/ArticleDate 노드에서 뽑을 수 있는 만큼 정밀하게 날짜를 만듭니다.
+// 월/일이 없으면 그 해 1월 1일로 보수적으로 채웁니다(비워두면 "새 논문" 비교 시
+// 항상 최신으로 오인되어 같은 논문이 매번 다시 "새 논문"으로 잡히는 문제가 생김).
+function toDateString(node: any): string | null {
+  if (!node) return null;
+  const year = node.Year ? parseInt(String(node.Year), 10) : NaN;
+  if (Number.isNaN(year)) return null;
+  const month = parseMonth(node.Month) ?? 1;
+  const dayRaw = node.Day ? parseInt(String(node.Day), 10) : NaN;
+  const day = Number.isNaN(dayRaw) ? 1 : dayRaw;
+  return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
 function buildTerm(params: SearchPubmedParams): string {
@@ -123,9 +157,18 @@ async function efetch(pmids: string[]): Promise<PubmedArticle[]> {
     });
 
     const journal = article?.Journal?.Title ?? article?.Journal?.ISOAbbreviation ?? "";
-    const pubDate = article?.Journal?.JournalIssue?.PubDate;
-    const yearRaw = pubDate?.Year ?? (pubDate?.MedlineDate ? String(pubDate.MedlineDate).slice(0, 4) : undefined);
+    const pubDateNode = article?.Journal?.JournalIssue?.PubDate;
+    const yearRaw =
+      pubDateNode?.Year ?? (pubDateNode?.MedlineDate ? String(pubDateNode.MedlineDate).slice(0, 4) : undefined);
     const pubYear = yearRaw ? parseInt(yearRaw, 10) : null;
+
+    // ArticleDate(전자출판일)는 항상 숫자 Year/Month/Day라 PubDate보다 더 정확한 경우가
+    // 많습니다. 없으면 PubDate로, 그마저 월/일이 없으면 연도만으로 보수적으로 채웁니다.
+    const articleDateNode = asArray(article?.ArticleDate)[0];
+    const pubDate =
+      toDateString(articleDateNode) ??
+      toDateString(pubDateNode) ??
+      (yearRaw && !Number.isNaN(pubYear) ? `${yearRaw}-01-01` : null);
 
     return {
       pmid,
@@ -134,6 +177,7 @@ async function efetch(pmids: string[]): Promise<PubmedArticle[]> {
       journal,
       pubYear: Number.isNaN(pubYear) ? null : pubYear,
       abstract,
+      pubDate,
     };
   });
 }
