@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Search, Library, LogOut, BookMarked } from "lucide-react";
+import { LayoutDashboard, Search, Library, LogOut, BookMarked, Calendar } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { clearAccessToken } from "@/lib/api";
 
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/", label: "대시보드", icon: LayoutDashboard },
   { href: "/search", label: "논문 검색", icon: Search },
   { href: "/library", label: "라이브러리", icon: Library },
+  { href: "/calendar", label: "캘린더", icon: Calendar },
 ];
 
 export default function Sidebar() {

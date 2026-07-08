@@ -11,3 +11,31 @@ body {
 * {
   box-sizing: border-box;
 }
+
+/* react-big-calendar를 navy 톤에 맞춰 최소한으로 재테마 */
+.dols-calendar .rbc-toolbar button {
+  color: #2b3f68;
+  border-color: #c9d4e8;
+}
+.dols-calendar .rbc-toolbar button:hover {
+  background-color: #f4f6fb;
+}
+.dols-calendar .rbc-toolbar button.rbc-active {
+  background-color: #1f2e4d;
+  border-color: #1f2e4d;
+  color: #fff;
+}
+.dols-calendar .rbc-toolbar-label {
+  font-weight: 600;
+  color: #141f36;
+}
+.dols-calendar .rbc-today {
+  background-color: #f4f6fb;
+}
+.dols-calendar .rbc-event {
+  background-color: #2b3f68;
+  border-color: #2b3f68;
+}
+.dols-calendar .rbc-off-range-bg {
+  background-color: #fafbfd;
+}

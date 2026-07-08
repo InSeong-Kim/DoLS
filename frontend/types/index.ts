@@ -73,3 +73,14 @@ export interface Profile {
   research_interest: string | null;
   updated_date: string | null;
 }
+
+export interface CalendarEvent {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  start_datetime: string;
+  end_datetime: string | null;
+  is_all_day: boolean;
+  created_date: string;
+}

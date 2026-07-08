@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import type {
+  CalendarEvent,
   KeywordSubscription,
   PaperAnalysisResult,
   Profile,
@@ -180,4 +181,32 @@ export const api = {
     request<{ files: { filename: string; upload_date: string; downloadUrl: string | null }[] }>(
       `/api/library/shared/${token}`
     ),
+
+  listCalendarEvents: (from: string, to: string) =>
+    request<CalendarEvent[]>(
+      `/api/calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+    ),
+  createCalendarEvent: (body: {
+    title: string;
+    description: string | null;
+    start_datetime: string;
+    end_datetime: string | null;
+    is_all_day: boolean;
+  }) =>
+    request<CalendarEvent>("/api/calendar/events", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateCalendarEvent: (
+    id: string,
+    patch: Partial<
+      Pick<CalendarEvent, "title" | "description" | "start_datetime" | "end_datetime" | "is_all_day">
+    >
+  ) =>
+    request<CalendarEvent>(`/api/calendar/events/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }),
+  deleteCalendarEvent: (id: string) =>
+    request<void>(`/api/calendar/events/${id}`, { method: "DELETE" }),
 };

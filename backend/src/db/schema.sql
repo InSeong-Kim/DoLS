@@ -223,6 +223,35 @@ create policy "keyword_subscriptions_update_own" on public.keyword_subscriptions
 create policy "keyword_subscriptions_delete_own" on public.keyword_subscriptions
   for delete using (auth.uid() = user_id);
 
+-- ---------------------------------------------------------------------
+-- calendar_events: 사용자별 개인 일정. 논문/검색과 무관한 범용 캘린더이며
+-- 반복 일정은 지원하지 않습니다(단발성 일정만).
+-- ---------------------------------------------------------------------
+create table if not exists public.calendar_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  description text,
+  start_datetime timestamptz not null,
+  end_datetime timestamptz,
+  is_all_day boolean not null default false,
+  created_date timestamptz not null default now()
+);
+
+create index if not exists idx_calendar_events_user on public.calendar_events (user_id);
+create index if not exists idx_calendar_events_start on public.calendar_events (start_datetime);
+
+alter table public.calendar_events enable row level security;
+
+create policy "calendar_events_select_own" on public.calendar_events
+  for select using (auth.uid() = user_id);
+create policy "calendar_events_insert_own" on public.calendar_events
+  for insert with check (auth.uid() = user_id);
+create policy "calendar_events_update_own" on public.calendar_events
+  for update using (auth.uid() = user_id);
+create policy "calendar_events_delete_own" on public.calendar_events
+  for delete using (auth.uid() = user_id);
+
 -- =====================================================================
 -- Storage: "papers" 버킷 (비공개, PDF 저장용)
 -- 객체 경로(object key) 규칙: {user_id}/{timestamp}_{filename}

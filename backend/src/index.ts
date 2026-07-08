@@ -7,6 +7,7 @@ import { pubmedRouter } from "./routes/pubmed";
 import { summaryRouter } from "./routes/summary";
 import { subscriptionsRouter } from "./routes/subscriptions";
 import { libraryRouter } from "./routes/library";
+import { calendarRouter } from "./routes/calendar";
 import { errorHandler } from "./middlewares/errorHandler";
 
 const app = express();
@@ -31,6 +32,7 @@ app.use("/api", pubmedRouter); // POST /api/search
 app.use("/api", summaryRouter); // POST /api/summarize, POST /api/summary/ask
 app.use("/api/subscriptions", subscriptionsRouter);
 app.use("/api/library", libraryRouter);
+app.use("/api/calendar", calendarRouter);
 
 app.use(errorHandler);
 
