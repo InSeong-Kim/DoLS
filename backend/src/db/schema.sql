@@ -242,6 +242,8 @@ create table if not exists public.calendar_events (
   start_datetime timestamptz not null,
   end_datetime timestamptz,
   is_all_day boolean not null default false,
+  -- 라이브러리에 업로드한 PDF와 연결(선택). 파일이 삭제되면 연결만 끊고 일정은 남깁니다.
+  uploaded_paper_id uuid references public.uploaded_papers(id) on delete set null,
   created_date timestamptz not null default now()
 );
 

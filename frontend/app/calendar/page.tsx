@@ -7,8 +7,9 @@ import { Views, type View, type SlotInfo } from "react-big-calendar";
 import { CalendarPlus } from "lucide-react";
 import CalendarView from "@/components/CalendarView";
 import EventModal from "@/components/EventModal";
+import TodayPanel from "@/components/TodayPanel";
 import { api, getAccessToken } from "@/lib/api";
-import type { CalendarEvent } from "@/types";
+import type { CalendarEvent, UploadedPaper } from "@/types";
 
 function computeRange(date: Date, view: View): { from: string; to: string } {
   const m = moment(date);
@@ -36,6 +37,10 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploads, setUploads] = useState<UploadedPaper[]>([]);
+
+  const [todayEvents, setTodayEvents] = useState<CalendarEvent[]>([]);
+  const [todayLoading, setTodayLoading] = useState(true);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitialStart, setModalInitialStart] = useState<Date | null>(null);
@@ -70,6 +75,41 @@ export default function CalendarPage() {
     loadEvents();
   }, [checkingAuth, loadEvents]);
 
+  useEffect(() => {
+    if (checkingAuth) return;
+    api.listUploads().then(setUploads).catch(() => {});
+  }, [checkingAuth]);
+
+  // 오늘 일정 패널은 현재 보고 있는 달/주/일 범위와 무관하게 항상 "오늘" 기준으로
+  // 따로 조회합니다(예: 다음 달을 보고 있어도 패널은 여전히 오늘 일정을 보여줘야 함).
+  const loadTodayEvents = useCallback(async () => {
+    setTodayLoading(true);
+    try {
+      const from = moment().startOf("day").toISOString();
+      const to = moment().endOf("day").toISOString();
+      const data = await api.listCalendarEvents(from, to);
+      setTodayEvents(data);
+    } catch {
+      // 사이드 패널이므로 실패해도 캘린더 본체 사용에는 영향 없이 조용히 넘어갑니다.
+    } finally {
+      setTodayLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (checkingAuth) return;
+    loadTodayEvents();
+  }, [checkingAuth, loadTodayEvents]);
+
+  async function handleOpenFile(uploadedPaperId: string) {
+    try {
+      const { url } = await api.getUploadDownloadUrl(uploadedPaperId);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "파일을 여는 데 실패했습니다.");
+    }
+  }
+
   function openNewEventModal(start: Date) {
     setModalEvent(null);
     setModalInitialStart(start);
@@ -93,6 +133,7 @@ export default function CalendarPage() {
     description: string | null;
     start_datetime: string;
     end_datetime: string | null;
+    uploaded_paper_id: string | null;
   }) {
     const is_all_day = !input.end_datetime;
     if (modalEvent) {
@@ -102,6 +143,7 @@ export default function CalendarPage() {
       const created = await api.createCalendarEvent({ ...input, is_all_day });
       setEvents((prev) => [...prev, created]);
     }
+    loadTodayEvents();
     closeModal();
   }
 
@@ -109,6 +151,7 @@ export default function CalendarPage() {
     if (!modalEvent) return;
     await api.deleteCalendarEvent(modalEvent.id);
     setEvents((prev) => prev.filter((e) => e.id !== modalEvent.id));
+    loadTodayEvents();
     closeModal();
   }
 
@@ -134,24 +177,39 @@ export default function CalendarPage() {
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      {loading ? (
-        <div className="h-[700px] animate-pulse rounded-lg border border-navy-200 bg-navy-50" />
-      ) : (
-        <CalendarView
-          events={events}
-          view={view}
-          date={date}
-          onViewChange={setView}
-          onNavigate={setDate}
-          onSelectSlot={(slotInfo: SlotInfo) => openNewEventModal(slotInfo.start)}
-          onSelectEvent={openEditEventModal}
-        />
-      )}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="order-2 lg:order-1">
+          {loading ? (
+            <div className="h-[700px] animate-pulse rounded-lg border border-navy-200 bg-navy-50" />
+          ) : (
+            <CalendarView
+              events={events}
+              view={view}
+              date={date}
+              onViewChange={setView}
+              onNavigate={setDate}
+              onSelectSlot={(slotInfo: SlotInfo) => openNewEventModal(slotInfo.start)}
+              onSelectEvent={openEditEventModal}
+              onOpenFile={handleOpenFile}
+            />
+          )}
+        </div>
+
+        <div className="order-1 lg:order-2">
+          <TodayPanel
+            events={todayEvents}
+            loading={todayLoading}
+            onSelectEvent={openEditEventModal}
+            onOpenFile={handleOpenFile}
+          />
+        </div>
+      </div>
 
       {modalOpen && (
         <EventModal
           initialStart={modalInitialStart}
           event={modalEvent}
+          uploads={uploads}
           onClose={closeModal}
           onSave={handleSave}
           onDelete={handleDelete}

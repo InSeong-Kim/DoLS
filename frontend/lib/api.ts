@@ -192,6 +192,7 @@ export const api = {
     start_datetime: string;
     end_datetime: string | null;
     is_all_day: boolean;
+    uploaded_paper_id?: string | null;
   }) =>
     request<CalendarEvent>("/api/calendar/events", {
       method: "POST",
@@ -200,7 +201,10 @@ export const api = {
   updateCalendarEvent: (
     id: string,
     patch: Partial<
-      Pick<CalendarEvent, "title" | "description" | "start_datetime" | "end_datetime" | "is_all_day">
+      Pick<
+        CalendarEvent,
+        "title" | "description" | "start_datetime" | "end_datetime" | "is_all_day" | "uploaded_paper_id"
+      >
     >
   ) =>
     request<CalendarEvent>(`/api/calendar/events/${id}`, {

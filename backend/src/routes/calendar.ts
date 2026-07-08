@@ -11,6 +11,19 @@ interface EventBody {
   start_datetime?: string;
   end_datetime?: string | null;
   is_all_day?: boolean;
+  uploaded_paper_id?: string | null;
+}
+
+// uploaded_paper_id로 다른 사람의 업로드 파일을 몰래 연결하지 못하도록,
+// 넘어온 id가 실제로 이 사용자 소유인지 확인합니다.
+async function assertOwnsUpload(userId: string, uploadedPaperId: string) {
+  const { data } = await supabaseAdmin
+    .from("uploaded_papers")
+    .select("id")
+    .eq("id", uploadedPaperId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!data) throw new HttpError(404, "연결하려는 업로드 파일을 찾을 수 없습니다.");
 }
 
 calendarRouter.get("/events", authMiddleware, async (req, res, next) => {
@@ -20,7 +33,7 @@ calendarRouter.get("/events", authMiddleware, async (req, res, next) => {
 
     const { data, error } = await supabaseAdmin
       .from("calendar_events")
-      .select("*")
+      .select("*, uploaded_papers(id, filename)")
       .eq("user_id", req.user!.id)
       .gte("start_datetime", String(from))
       .lte("start_datetime", String(to))
@@ -39,6 +52,7 @@ calendarRouter.post("/events", authMiddleware, async (req, res, next) => {
     const title = (body.title ?? "").trim();
     if (!title) throw new HttpError(400, "title이 필요합니다.");
     if (!body.start_datetime) throw new HttpError(400, "start_datetime이 필요합니다.");
+    if (body.uploaded_paper_id) await assertOwnsUpload(req.user!.id, body.uploaded_paper_id);
 
     const { data, error } = await supabaseAdmin
       .from("calendar_events")
@@ -49,8 +63,9 @@ calendarRouter.post("/events", authMiddleware, async (req, res, next) => {
         start_datetime: body.start_datetime,
         end_datetime: body.end_datetime ?? null,
         is_all_day: Boolean(body.is_all_day),
+        uploaded_paper_id: body.uploaded_paper_id ?? null,
       })
-      .select("*")
+      .select("*, uploaded_papers(id, filename)")
       .single();
 
     if (error) throw new HttpError(500, error.message);
@@ -69,6 +84,10 @@ calendarRouter.patch("/events/:id", authMiddleware, async (req, res, next) => {
     if (body.start_datetime !== undefined) patch.start_datetime = body.start_datetime;
     if (body.end_datetime !== undefined) patch.end_datetime = body.end_datetime;
     if (body.is_all_day !== undefined) patch.is_all_day = body.is_all_day;
+    if (body.uploaded_paper_id !== undefined) {
+      if (body.uploaded_paper_id) await assertOwnsUpload(req.user!.id, body.uploaded_paper_id);
+      patch.uploaded_paper_id = body.uploaded_paper_id;
+    }
 
     if (Object.keys(patch).length === 0) {
       throw new HttpError(400, "수정할 필드가 없습니다.");
@@ -79,7 +98,7 @@ calendarRouter.patch("/events/:id", authMiddleware, async (req, res, next) => {
       .update(patch)
       .eq("id", req.params.id)
       .eq("user_id", req.user!.id)
-      .select("*")
+      .select("*, uploaded_papers(id, filename)")
       .maybeSingle();
 
     if (error) throw new HttpError(500, error.message);

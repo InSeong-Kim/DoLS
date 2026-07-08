@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Trash2 } from "lucide-react";
-import type { CalendarEvent } from "@/types";
+import { X, Trash2, Paperclip, ExternalLink } from "lucide-react";
+import { api } from "@/lib/api";
+import type { CalendarEvent, UploadedPaper } from "@/types";
 
 interface EventModalProps {
   initialStart: Date | null;
   event: CalendarEvent | null;
+  uploads: UploadedPaper[];
   onClose: () => void;
   onSave: (input: {
     title: string;
     description: string | null;
     start_datetime: string;
     end_datetime: string | null;
+    uploaded_paper_id: string | null;
   }) => Promise<void>;
   onDelete: () => Promise<void>;
 }
@@ -24,13 +27,96 @@ function toLocalInputValue(date: Date): string {
   )}:${pad(date.getMinutes())}`;
 }
 
-export default function EventModal({ initialStart, event, onClose, onSave, onDelete }: EventModalProps) {
+// datetime-local 입력창은 브라우저가 OS 로케일에 따라 오전/오후로 표시해버려서
+// 24시간제를 강제할 수 없습니다. 날짜 입력 + 시/분 select로 직접 구성해 확실히
+// 24시간제로 통일합니다.
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+
+function splitLocal(value: string): { date: string; hour: string; minute: string } {
+  if (!value) return { date: "", hour: "00", minute: "00" };
+  const [date, time] = value.split("T");
+  const [hour, minute] = (time ?? "00:00").split(":");
+  return { date, hour: hour ?? "00", minute: minute ?? "00" };
+}
+
+function joinLocal(date: string, hour: string, minute: string): string {
+  return date ? `${date}T${hour}:${minute}` : "";
+}
+
+function DateTimeField({
+  label,
+  value,
+  onChange,
+  required,
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  required?: boolean;
+  hint?: string;
+}) {
+  const { date, hour, minute } = splitLocal(value);
+
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-navy-500">{label}</label>
+      <div className="flex gap-1.5">
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => onChange(joinLocal(e.target.value, hour, minute))}
+          required={required}
+          className="min-w-0 flex-1 rounded-md border border-navy-200 px-2 py-2 text-sm outline-none focus:border-navy-500"
+        />
+        <select
+          value={hour}
+          onChange={(e) => date && onChange(joinLocal(date, e.target.value, minute))}
+          disabled={!date}
+          className="rounded-md border border-navy-200 px-1.5 py-2 text-sm outline-none focus:border-navy-500 disabled:opacity-50"
+        >
+          {HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h}
+            </option>
+          ))}
+        </select>
+        <span className="flex items-center text-navy-400">:</span>
+        <select
+          value={minute}
+          onChange={(e) => date && onChange(joinLocal(date, hour, e.target.value))}
+          disabled={!date}
+          className="rounded-md border border-navy-200 px-1.5 py-2 text-sm outline-none focus:border-navy-500 disabled:opacity-50"
+        >
+          {MINUTES.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </div>
+      {hint && <p className="mt-1 text-xs text-navy-400">{hint}</p>}
+    </div>
+  );
+}
+
+export default function EventModal({
+  initialStart,
+  event,
+  uploads,
+  onClose,
+  onSave,
+  onDelete,
+}: EventModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [uploadedPaperId, setUploadedPaperId] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [openingFile, setOpeningFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,11 +125,13 @@ export default function EventModal({ initialStart, event, onClose, onSave, onDel
       setDescription(event.description ?? "");
       setStart(toLocalInputValue(new Date(event.start_datetime)));
       setEnd(event.end_datetime ? toLocalInputValue(new Date(event.end_datetime)) : "");
+      setUploadedPaperId(event.uploaded_paper_id ?? "");
     } else if (initialStart) {
       setTitle("");
       setDescription("");
       setStart(toLocalInputValue(initialStart));
       setEnd("");
+      setUploadedPaperId("");
     }
   }, [event, initialStart]);
 
@@ -58,6 +146,7 @@ export default function EventModal({ initialStart, event, onClose, onSave, onDel
         description: description.trim() || null,
         start_datetime: new Date(start).toISOString(),
         end_datetime: end ? new Date(end).toISOString() : null,
+        uploaded_paper_id: uploadedPaperId || null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "저장에 실패했습니다.");
@@ -79,6 +168,20 @@ export default function EventModal({ initialStart, event, onClose, onSave, onDel
     }
   }
 
+  async function handleOpenFile() {
+    if (!event?.uploaded_paper_id) return;
+    setOpeningFile(true);
+    setError(null);
+    try {
+      const { url } = await api.getUploadDownloadUrl(event.uploaded_paper_id);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "파일을 여는 데 실패했습니다.");
+    } finally {
+      setOpeningFile(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/40 px-4">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
@@ -88,6 +191,19 @@ export default function EventModal({ initialStart, event, onClose, onSave, onDel
             <X size={18} strokeWidth={2.25} />
           </button>
         </div>
+
+        {event?.uploaded_papers && (
+          <button
+            type="button"
+            onClick={handleOpenFile}
+            disabled={openingFile}
+            className="mb-4 flex w-full items-center gap-2 rounded-md bg-navy-50 px-3 py-2 text-left text-sm text-navy-700 hover:bg-navy-100 disabled:opacity-60"
+          >
+            <Paperclip size={14} strokeWidth={2.25} className="shrink-0 text-navy-400" />
+            <span className="flex-1 truncate">{event.uploaded_papers.filename}</span>
+            <ExternalLink size={13} strokeWidth={2.25} className="shrink-0 text-navy-400" />
+          </button>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -113,27 +229,33 @@ export default function EventModal({ initialStart, event, onClose, onSave, onDel
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-navy-500">시작 일시</label>
-              <input
-                type="datetime-local"
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-                required
-                className="w-full rounded-md border border-navy-200 px-3 py-2 text-sm outline-none focus:border-navy-500"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-navy-500">종료 일시</label>
-              <input
-                type="datetime-local"
-                value={end}
-                onChange={(e) => setEnd(e.target.value)}
-                className="w-full rounded-md border border-navy-200 px-3 py-2 text-sm outline-none focus:border-navy-500"
-              />
-              <p className="mt-1 text-xs text-navy-400">비워두면 하루 종일 일정으로 처리됩니다.</p>
-            </div>
+          <div className="space-y-3">
+            <DateTimeField label="시작 일시" value={start} onChange={setStart} required />
+            <DateTimeField
+              label="종료 일시"
+              value={end}
+              onChange={setEnd}
+              hint="비워두면 하루 종일 일정으로 처리됩니다."
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-navy-500">첨부 파일</label>
+            <select
+              value={uploadedPaperId}
+              onChange={(e) => setUploadedPaperId(e.target.value)}
+              className="w-full rounded-md border border-navy-200 px-3 py-2 text-sm outline-none focus:border-navy-500"
+            >
+              <option value="">연결 안 함</option>
+              {uploads.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.filename}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-navy-400">
+              라이브러리에 업로드한 PDF 중 하나를 이 일정에 연결할 수 있습니다.
+            </p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}

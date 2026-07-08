@@ -8,11 +8,12 @@ import {
   type View,
   type SlotInfo,
   type ToolbarProps,
+  type EventProps,
 } from "react-big-calendar";
 import moment from "moment";
 import "moment/locale/ko";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Paperclip } from "lucide-react";
 import type { CalendarEvent } from "@/types";
 
 moment.locale("ko");
@@ -111,6 +112,7 @@ interface CalendarViewProps {
   onNavigate: (date: Date) => void;
   onSelectSlot: (slotInfo: SlotInfo) => void;
   onSelectEvent: (event: CalendarEvent) => void;
+  onOpenFile: (uploadedPaperId: string) => void;
 }
 
 export default function CalendarView({
@@ -121,8 +123,33 @@ export default function CalendarView({
   onNavigate,
   onSelectSlot,
   onSelectEvent,
+  onOpenFile,
 }: CalendarViewProps) {
   const rbcEvents = events.map(toRbcEvent);
+
+  // 일정 박스 안에 첨부파일 클립 아이콘을 넣어, 그 아이콘만 눌렀을 땐 모달을 열지
+  // 않고 바로 파일을 열게 합니다(stopPropagation으로 일정 클릭과 분리).
+  function EventContent({ event }: EventProps<RbcEvent>) {
+    const uploadedPaperId = event.raw.uploaded_paper_id;
+    return (
+      <span className="flex items-center gap-1 overflow-hidden">
+        {uploadedPaperId && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFile(uploadedPaperId);
+            }}
+            title="첨부 파일 열기"
+            className="shrink-0 text-white/80 hover:text-white"
+          >
+            <Paperclip size={11} strokeWidth={2.5} />
+          </button>
+        )}
+        <span className="truncate">{event.title}</span>
+      </span>
+    );
+  }
 
   return (
     <div className="dols-calendar rounded-lg border border-navy-200 bg-white p-4 shadow-sm">
@@ -141,7 +168,7 @@ export default function CalendarView({
         onSelectEvent={(e) => onSelectEvent((e as unknown as RbcEvent).raw)}
         style={{ height: 700 }}
         formats={CALENDAR_FORMATS}
-        components={{ toolbar: CalendarToolbar }}
+        components={{ toolbar: CalendarToolbar, event: EventContent }}
         messages={{
           agenda: "일정",
           date: "날짜",

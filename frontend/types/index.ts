@@ -83,5 +83,7 @@ export interface CalendarEvent {
   start_datetime: string;
   end_datetime: string | null;
   is_all_day: boolean;
+  uploaded_paper_id: string | null;
+  uploaded_papers?: { id: string; filename: string } | null;
   created_date: string;
 }
