@@ -67,7 +67,6 @@ function SearchPageInner() {
 
   const [subscriptions, setSubscriptions] = useState<KeywordSubscription[]>([]);
   const [checks, setChecks] = useState<SubscriptionCheckResult[]>([]);
-  const [expandedSubId, setExpandedSubId] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState(false);
 
   useEffect(() => {
@@ -83,14 +82,19 @@ function SearchPageInner() {
     refreshSubscriptions();
   }, [isLoggedIn]);
 
+  const keywordParam = searchParams?.get("keyword") ?? null;
+
+  // keywordParam(URL의 ?keyword=)이 바뀔 때마다 재검색합니다. 마운트 시 1회만 실행하면
+  // 이미 /search에 있는 상태에서 다른 keyword로 다시 들어왔을 때(예: 대시보드의 구독
+  // 키워드 클릭) 쿼리 파라미터만 바뀌고 컴포넌트는 리마운트되지 않아 검색이 전혀
+  // 실행되지 않는 문제가 있었습니다.
   useEffect(() => {
-    const prefill = searchParams?.get("keyword");
-    if (prefill) {
-      setKeyword(prefill);
-      runSearch(prefill);
+    if (keywordParam) {
+      setKeyword(keywordParam);
+      runSearch(keywordParam);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [keywordParam]);
 
   async function refreshSubscriptions() {
     try {
@@ -201,7 +205,6 @@ function SearchPageInner() {
       await api.unsubscribe(id);
       setSubscriptions((prev) => prev.filter((s) => s.id !== id));
       setChecks((prev) => prev.filter((c) => c.subscription.id !== id));
-      if (expandedSubId === id) setExpandedSubId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "구독 해제에 실패했습니다.");
     }
@@ -211,7 +214,6 @@ function SearchPageInner() {
     try {
       await api.ackSubscription(id);
       setChecks((prev) => prev.filter((c) => c.subscription.id !== id));
-      setExpandedSubId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "확인 처리에 실패했습니다.");
     }
@@ -253,7 +255,8 @@ function SearchPageInner() {
               return (
                 <div key={sub.id} className="flex items-center gap-1">
                   <button
-                    onClick={() => newCount > 0 && setExpandedSubId(expandedSubId === sub.id ? null : sub.id)}
+                    onClick={() => handleQuickSearch(sub.keyword)}
+                    title={`"${sub.keyword}" 바로 검색`}
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       newCount > 0 ? "bg-navy-800 text-white shadow-sm" : "bg-navy-50 text-navy-500"
                     }`}
@@ -261,6 +264,15 @@ function SearchPageInner() {
                     {sub.keyword}
                     {newCount > 0 ? ` · 새 논문 ${newCount}편` : ""}
                   </button>
+                  {newCount > 0 && (
+                    <button
+                      onClick={() => handleAck(sub.id)}
+                      className="text-navy-300 hover:text-navy-600"
+                      title="확인 완료로 표시"
+                    >
+                      <BellOff size={14} strokeWidth={2.25} />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleUnsubscribe(sub.id)}
                     className="text-navy-300 hover:text-red-500"
@@ -272,29 +284,6 @@ function SearchPageInner() {
               );
             })}
           </div>
-
-          {expandedSubId && (
-            <div className="mt-4 space-y-3 border-t border-navy-100 pt-4">
-              {(() => {
-                const check = checks.find((c) => c.subscription.id === expandedSubId);
-                if (!check) return null;
-                return (
-                  <>
-                    {check.newArticles.map((a) => (
-                      <PaperCard key={a.pmid} article={a} />
-                    ))}
-                    <button
-                      onClick={() => handleAck(expandedSubId)}
-                      className="flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-navy-900"
-                    >
-                      <BellOff size={13} strokeWidth={2.25} />
-                      확인 완료로 표시
-                    </button>
-                  </>
-                );
-              })()}
-            </div>
-          )}
         </section>
       )}
 
