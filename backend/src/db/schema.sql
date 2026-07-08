@@ -54,16 +54,23 @@ create policy "search_results_public_read" on public.search_results
 -- (일반 anon/authenticated 역할에는 insert/update/delete 정책을 부여하지 않습니다.)
 
 -- ---------------------------------------------------------------------
--- summaries: 키워드 단위 AI 요약의 전역 캐시
+-- summaries: (키워드, 연구관심사) 단위 AI 요약의 전역 캐시.
+-- research_interest가 null이면 비개인화 요약, 채워져 있으면 그 연구관심사로
+-- 개인화된 요약(paper_relevance 포함)입니다. pmids는 이 요약을 만들 때 쓴
+-- 논문 PMID 목록으로, 캐시 조회 시 지금 검색된 PMID 목록과 다르면(새 논문이
+-- 섞여 들어왔으면) 캐시를 쓰지 않고 다시 계산하는 데 씁니다.
 -- ---------------------------------------------------------------------
 create table if not exists public.summaries (
   id uuid primary key default gen_random_uuid(),
   keyword text not null,
+  research_interest text,
+  pmids jsonb not null default '[]',
   trend_summary text,
   key_technologies jsonb not null default '[]',
   frequent_genes jsonb not null default '[]',
   keywords jsonb not null default '[]',
   future_directions text,
+  paper_relevance jsonb,
   created_date timestamptz not null default now()
 );
 

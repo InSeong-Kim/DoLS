@@ -22,13 +22,26 @@ interface SummarizeRequestBody {
 }
 
 function rowToSummary(row: any): SummaryResult {
-  return {
+  const result: SummaryResult = {
     trend_summary: row.trend_summary ?? "",
     key_technologies: Array.isArray(row.key_technologies) ? row.key_technologies : [],
     frequent_genes: Array.isArray(row.frequent_genes) ? row.frequent_genes : [],
     keywords: Array.isArray(row.keywords) ? row.keywords : [],
     future_directions: row.future_directions ?? "",
   };
+  if (Array.isArray(row.paper_relevance)) result.paper_relevance = row.paper_relevance;
+  return result;
+}
+
+function sortedPmidsOf(articles: PubmedArticle[]): string[] {
+  return articles.map((a) => a.pmid).sort();
+}
+
+function sameArticleSet(cachedPmids: unknown, currentSortedPmids: string[]): boolean {
+  if (!Array.isArray(cachedPmids)) return false;
+  if (cachedPmids.length !== currentSortedPmids.length) return false;
+  const sorted = [...cachedPmids].sort();
+  return sorted.every((pmid, i) => pmid === currentSortedPmids[i]);
 }
 
 function rowToPaperAnalysis(row: any): PaperAnalysisResult {
@@ -41,8 +54,11 @@ function rowToPaperAnalysis(row: any): PaperAnalysisResult {
 }
 
 // AI 요약. 로그인 상태이고 profiles.research_interest가 채워져 있으면
-// 논문별 개인화 관련성(paper_relevance)을 함께 요청합니다. 개인화된 결과는
-// 사용자마다 달라지므로 summaries 전역 캐시에는 저장하지 않고 매번 새로 계산합니다.
+// 논문별 개인화 관련성(paper_relevance)을 함께 요청합니다.
+// 캐시는 (키워드 + 연구관심사) 조합으로 찾되, 그때 요약한 논문 목록(PMID 집합)이
+// 지금 검색된 목록과 다르면(= 새 논문이 섞여 들어왔으면) 캐시를 쓰지 않고 새로
+// 계산합니다. 그래야 새로고침을 누르지 않아도 새 논문이 있을 땐 자동으로 반영되고,
+// 없을 땐(=논문 목록이 그대로면) AI를 다시 호출하지 않아 매번 결과가 흔들리지 않습니다.
 summaryRouter.post("/summarize", optionalAuthMiddleware, async (req, res, next) => {
   try {
     const body = req.body as SummarizeRequestBody;
@@ -64,33 +80,31 @@ summaryRouter.post("/summarize", optionalAuthMiddleware, async (req, res, next) 
       researchInterest = data?.research_interest ?? null;
     }
     const personalize = Boolean(researchInterest && researchInterest.trim());
+    const currentPmids = sortedPmidsOf(articles);
 
-    if (!personalize && !body.forceRefresh) {
-      const { data } = await supabaseAdmin
-        .from("summaries")
-        .select("*")
-        .eq("keyword", keyword)
-        .order("created_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    if (!body.forceRefresh) {
+      let query = supabaseAdmin.from("summaries").select("*").eq("keyword", keyword);
+      query = personalize ? query.eq("research_interest", researchInterest) : query.is("research_interest", null);
+      const { data } = await query.order("created_date", { ascending: false }).limit(1).maybeSingle();
 
-      if (data) {
+      if (data && sameArticleSet(data.pmids, currentPmids)) {
         return res.json({ summary: rowToSummary(data), fromCache: true });
       }
     }
 
     const summary = await summarizeLiterature(keyword, articles, researchInterest);
 
-    if (!personalize) {
-      await supabaseAdmin.from("summaries").insert({
-        keyword,
-        trend_summary: summary.trend_summary,
-        key_technologies: summary.key_technologies,
-        frequent_genes: summary.frequent_genes,
-        keywords: summary.keywords,
-        future_directions: summary.future_directions,
-      });
-    }
+    await supabaseAdmin.from("summaries").insert({
+      keyword,
+      research_interest: personalize ? researchInterest : null,
+      pmids: currentPmids,
+      trend_summary: summary.trend_summary,
+      key_technologies: summary.key_technologies,
+      frequent_genes: summary.frequent_genes,
+      keywords: summary.keywords,
+      future_directions: summary.future_directions,
+      paper_relevance: summary.paper_relevance ?? null,
+    });
 
     res.json({ summary, fromCache: false });
   } catch (err) {
