@@ -12,30 +12,66 @@ body {
   box-sizing: border-box;
 }
 
-/* react-big-calendar를 navy 톤에 맞춰 최소한으로 재테마 */
-.dols-calendar .rbc-toolbar button {
-  color: #2b3f68;
-  border-color: #c9d4e8;
+/* react-big-calendar를 navy 톤에 맞춰 재테마 (툴바는 CalendarToolbar로 직접 구현) */
+.dols-calendar .rbc-month-view,
+.dols-calendar .rbc-time-view {
+  border-color: #e6ebf5;
+  border-radius: 10px;
+  overflow: hidden;
 }
-.dols-calendar .rbc-toolbar button:hover {
-  background-color: #f4f6fb;
-}
-.dols-calendar .rbc-toolbar button.rbc-active {
-  background-color: #1f2e4d;
-  border-color: #1f2e4d;
-  color: #fff;
-}
-.dols-calendar .rbc-toolbar-label {
+.dols-calendar .rbc-header {
+  padding: 10px 4px;
+  font-size: 13px;
   font-weight: 600;
-  color: #141f36;
+  color: #4d67a0;
+  border-color: #e6ebf5;
+}
+.dols-calendar .rbc-month-row + .rbc-month-row,
+.dols-calendar .rbc-day-bg + .rbc-day-bg,
+.dols-calendar .rbc-header + .rbc-header,
+.dols-calendar .rbc-time-content,
+.dols-calendar .rbc-time-content > * + * > *,
+.dols-calendar .rbc-timeslot-group,
+.dols-calendar .rbc-time-header-content {
+  border-color: #e6ebf5;
+}
+.dols-calendar .rbc-off-range-bg {
+  background-color: #fafbfd;
 }
 .dols-calendar .rbc-today {
   background-color: #f4f6fb;
 }
+.dols-calendar .rbc-date-cell {
+  padding: 4px 8px;
+  font-size: 13px;
+  color: #374f82;
+}
+.dols-calendar .rbc-date-cell.rbc-now {
+  font-weight: 700;
+  color: #1f2e4d;
+}
 .dols-calendar .rbc-event {
   background-color: #2b3f68;
   border-color: #2b3f68;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12px;
 }
-.dols-calendar .rbc-off-range-bg {
-  background-color: #fafbfd;
+.dols-calendar .rbc-event.rbc-selected {
+  background-color: #1f2e4d;
+}
+.dols-calendar .rbc-show-more {
+  color: #2b3f68;
+  font-weight: 500;
+}
+.dols-calendar .rbc-current-time-indicator {
+  background-color: #4d67a0;
+}
+/* 주/일 뷰 상단에 종일 일정이 없어도 라이브러리가 항상 2줄을 예약해두는 빈 공간을 줄임 */
+.dols-calendar .rbc-time-view .rbc-allday-cell .rbc-row {
+  min-height: 4px;
+}
+/* 시간대별 일정 박스가 칸 오른쪽에 10px 여백을 남기던 기본값을 제거해 칸에 꽉 차게 함 */
+.dols-calendar .rbc-day-slot .rbc-events-container {
+  margin-right: 0;
 }
